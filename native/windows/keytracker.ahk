@@ -9,9 +9,21 @@
 ; 隐藏窗口
 #WinActivateForce
 
-; 发送按键信息的函数
+; 发送按键信息的函数（带时间戳）
 SendKey(category, keyName) {
-    FileAppend("KEYDOWN:" . category . ":" . keyName . "`n", "*", "UTF-8")
+    ; 获取当前时间戳（毫秒级 Unix 时间戳）
+    timestamp := GetUnixTimestamp()
+    FileAppend("KEYDOWN:" . category . ":" . keyName . ":" . timestamp . "`n", "*", "UTF-8")
+}
+
+; 获取 Unix 时间戳（毫秒）
+GetUnixTimestamp() {
+    ; 使用 A_NowUTC 和 DateDiff 计算 Unix 时间戳
+    utcNow := A_NowUTC
+    ; 从 1970-01-01 到现在的秒数
+    seconds := DateDiff(utcNow, "19700101000000", "Seconds")
+    ; 转换为毫秒并添加毫秒部分
+    return seconds * 1000 + A_MSec
 }
 
 ; 发送组合键信息的函数

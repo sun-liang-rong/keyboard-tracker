@@ -89,6 +89,14 @@
       </div>
     </section>
 
+    <!-- 行为模式识别 -->
+    <section class="mb-8">
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
+        🧠 行为模式识别
+      </h2>
+      <PatternDashboard />
+    </section>
+
     <!-- 称号展示与组合键统计 -->
     <section class="mb-8">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -219,6 +227,7 @@ import CategoryChart from '../components/CategoryChart.vue'
 import TopKeysChart from '../components/TopKeysChart.vue'
 import ComboStats from '../components/ComboStats.vue'
 import TitleDisplay from '../components/TitleDisplay.vue'
+import PatternDashboard from '../components/PatternDashboard.vue'
 
 const statsStore = useStatsStore()
 const { activeHours, focusSessions, formattedTodayCount, categoryCount, topKeys, comboCounts, currentTitle, unlockedTitles } = storeToRefs(statsStore)

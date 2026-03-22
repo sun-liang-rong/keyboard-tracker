@@ -330,8 +330,9 @@ CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef eve
                 std::cout << "COMBO:OTHER" << std::endl;
             }
 
-            // 同时输出单个按键事件
-            std::cout << "KEYDOWN:" << getCategoryName(category) << ":" << keyName << std::endl;
+            // 同时输出单个按键事件（带时间戳）
+            long long timestamp = (long long)(CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970) * 1000;
+            std::cout << "KEYDOWN:" << getCategoryName(category) << ":" << keyName << ":" << timestamp << std::endl;
         } else {
             // 未知按键
             std::cout << "KEYDOWN:other:unknown" << std::endl;

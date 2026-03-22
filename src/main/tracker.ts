@@ -1,7 +1,10 @@
 import { spawn } from 'child_process'
 import { join } from 'path'
 import { BrowserWindow, app, powerMonitor } from 'electron'
-import { getDatabase, saveData, findDailyStatByDate, createDefaultDailyStat, createDefaultCategoryCount, createDefaultComboCounts, upsertDailyStat, type KeyCategoryCount, type TopKeyItem, type ComboCounts } from './database'
+import { isQuitting } from './index'
+import { patternEngine } from './pattern-engine'
+import { BehaviorPattern } from './database'
+import { getDatabase, saveData, findDailyStatByDate, createDefaultDailyStat, createDefaultCategoryCount, createDefaultComboCounts, upsertDailyStat, type KeyCategoryCount, type TopKeyItem, type ComboCounts, type PatternStats } from './database'
 
 // ========== 性能优化配置 ==========
 const PERF_CONFIG = {
@@ -55,12 +58,11 @@ let isTrackerPaused = false
 
 // 节流控制
 let lastKeyProcessTime = 0
-let pendingKeyEvents: { category: string; keyName: string }[] = []
+let pendingKeyEvents: { category: string; keyName: string; timestamp: number }[] = []
 let keyProcessTimer: NodeJS.Timeout | null = null
 
 // 数据保存控制
 let lastSaveTime = 0
-let pendingSave = false
 
 // 内存监控
 let lastMemoryCheck = 0
@@ -68,9 +70,20 @@ let lastMemoryCheck = 0
 // 悬浮窗更新回调
 let floatingWindowUpdater: ((count: number) => void) | null = null
 
+// 窗口监听
+let windowTracker: ReturnType<typeof spawn> | null = null
+let currentWindowInfo: WindowInfo | null = null
+
+// 窗口信息类型
+interface WindowInfo {
+  appName: string
+  bundleId?: string
+  windowTitle: string
+  timestamp: number
+}
+
 // UI更新节流
 let lastUIUpdateTime = 0
-let pendingUIUpdate = false
 let lastFloatingUpdateTime = 0
 
 
@@ -418,6 +431,9 @@ export async function initTodayCount(): Promise<void> {
       comboCounts = createDefaultComboCounts()
       keyCountMap.clear()
 
+      // 重置模式识别引擎
+      patternEngine.reset()
+
       console.log('[Tracker] Previous day data saved, reset for new day:', today)
     }
 
@@ -454,6 +470,10 @@ export async function initTodayCount(): Promise<void> {
       categoryCounts = createDefaultCategoryCount()
       comboCounts = createDefaultComboCounts()
       keyCountMap.clear()
+
+      // 重置模式识别引擎
+      patternEngine.reset()
+
       console.log('[Tracker] No previous data for today, starting fresh')
     }
   } catch (error) {
@@ -463,6 +483,9 @@ export async function initTodayCount(): Promise<void> {
     categoryCounts = createDefaultCategoryCount()
     comboCounts = createDefaultComboCounts()
     keyCountMap.clear()
+
+    // 重置模式识别引擎
+    patternEngine.reset()
   }
 }
 
@@ -513,15 +536,21 @@ export function startKeyboardTracker(mainWindow: BrowserWindow | null): void {
       lines.forEach((line) => {
         const trimmed = line.trim()
         if (trimmed.startsWith('KEYDOWN')) {
-          // 解析新的格式: KEYDOWN:category:keyName
+          // 解析新的格式: KEYDOWN:category:keyName:timestamp
           const parts = trimmed.split(':')
-          if (parts.length >= 3) {
+          if (parts.length >= 4) {
             const category = parts[1]
             const keyName = parts[2]
-            onKeyPress(category, keyName)
+            const timestamp = parseInt(parts[3], 10)
+            onKeyPress(category, keyName, timestamp)
+          } else if (parts.length === 3) {
+            // 兼容旧格式: KEYDOWN:category:keyName
+            const category = parts[1]
+            const keyName = parts[2]
+            onKeyPress(category, keyName, Date.now())
           } else if (parts.length === 1) {
             // 兼容旧格式: 只输出 KEYDOWN
-            onKeyPress('other', 'unknown')
+            onKeyPress('other', 'unknown', Date.now())
           }
         } else if (trimmed.startsWith('COMBO')) {
           // 处理组合键事件: COMBO:comboName
@@ -548,6 +577,12 @@ export function startKeyboardTracker(mainWindow: BrowserWindow | null): void {
     process.on('exit', () => {
       tracker.kill()
     })
+
+    // 启动窗口监听
+    startWindowTracker()
+
+    // 初始化模式识别引擎
+    initPatternEngine()
   } catch (error) {
     console.error('[Tracker] Failed to start keyboard tracker:', error)
     console.log('[Tracker] Please compile the native binary first:')
@@ -643,8 +678,8 @@ function onComboPress(comboName: string): void {
 /**
  * 处理按键事件（入口，使用节流）
  */
-function onKeyPress(category: string, keyName: string): void {
-  processKeyEvent(category, keyName)
+function onKeyPress(category: string, keyName: string, timestamp: number = Date.now()): void {
+  processKeyEvent(category, keyName, timestamp)
 }
 
 /**
@@ -973,7 +1008,7 @@ function performMemoryCleanup(): void {
 /**
  * 处理按键事件（带节流）
  */
-function processKeyEvent(category: string, keyName: string): void {
+function processKeyEvent(category: string, keyName: string, timestamp: number = Date.now()): void {
   const now = Date.now()
 
   // 如果系统处于暂停状态，不处理
@@ -985,7 +1020,7 @@ function processKeyEvent(category: string, keyName: string): void {
   checkMemoryUsage()
 
   // 将事件加入队列
-  pendingKeyEvents.push({ category, keyName })
+  pendingKeyEvents.push({ category, keyName, timestamp })
 
   // 如果已经有定时器，不重复创建
   if (keyProcessTimer) {
@@ -1000,7 +1035,7 @@ function processKeyEvent(category: string, keyName: string): void {
     // 批量处理队列中的所有事件
     const events = pendingKeyEvents.splice(0, pendingKeyEvents.length)
     events.forEach(event => {
-      processSingleKeyEvent(event.category, event.keyName)
+      processSingleKeyEvent(event.category, event.keyName, event.timestamp)
     })
 
     lastKeyProcessTime = Date.now()
@@ -1008,16 +1043,19 @@ function processKeyEvent(category: string, keyName: string): void {
 
     // 如果还有积压的事件，继续处理
     if (pendingKeyEvents.length > 0) {
-      processKeyEvent(pendingKeyEvents[0].category, pendingKeyEvents[0].keyName)
+      const nextEvent = pendingKeyEvents[0]
+      processKeyEvent(nextEvent.category, nextEvent.keyName, nextEvent.timestamp)
     }
   }, delay)
 }
 
 /**
  * 处理单个按键事件（实际统计逻辑）
+ * @param timestamp - 按键时间戳（毫秒），用于行为模式识别
  */
-function processSingleKeyEvent(category: string, keyName: string): void {
-  todayCount++
+function processSingleKeyEvent(category: string, keyName: string, timestamp: number): void {
+  // 更新模式识别引擎
+  patternEngine.addKeyEvent(category, keyName, timestamp)
 
   // 更新当前小时的计数
   const hour = getCurrentHour()
@@ -1078,4 +1116,218 @@ export function getPerformanceStats(): {
     pendingEvents: pendingKeyEvents.length,
     lastSaveTime,
   }
+}
+
+// ========== 窗口监听功能 ==========
+
+/**
+ * 获取窗口监听二进制文件路径
+ */
+function getWindowObserverPath(): string {
+  const isWin = process.platform === 'win32'
+  const binName = isWin ? 'window_tracker-win.exe' : 'window_observer-mac'
+
+  if (app.isPackaged) {
+    return join(app.getAppPath(), 'src', 'bin', binName)
+  } else {
+    return join(process.cwd(), 'src', 'bin', binName)
+  }
+}
+
+/**
+ * 启动窗口监听进程
+ */
+function startWindowTracker(): void {
+  const binPath = getWindowObserverPath()
+
+  console.log('[WindowTracker] Binary path:', binPath)
+
+  try {
+    windowTracker = spawn(binPath, [], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    console.log('[WindowTracker] Window tracker started')
+
+    // 监听窗口事件
+    windowTracker.stdout?.on('data', (data: Buffer) => {
+      const lines = data.toString().split('\n')
+      lines.forEach((line) => {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('WINDOW:')) {
+          // 解析窗口信息: WINDOW:{"appName":"...","windowTitle":"...","timestamp":...}
+          const jsonStr = trimmed.substring(7) // 去掉 "WINDOW:" 前缀
+          try {
+            const windowInfo: WindowInfo = JSON.parse(jsonStr)
+            onWindowChange(windowInfo)
+          } catch (error) {
+            console.error('[WindowTracker] Failed to parse window info:', error)
+          }
+        } else if (trimmed === 'READY') {
+          console.log('[WindowTracker] Ready')
+        }
+      })
+    })
+
+    // 监听错误
+    windowTracker.stderr?.on('data', (data: Buffer) => {
+      console.error('[WindowTracker] Error:', data.toString())
+    })
+
+    // 进程退出
+    windowTracker.on('exit', (code) => {
+      console.log('[WindowTracker] Process exited with code:', code)
+      // 如果进程意外退出，5秒后尝试重启
+      if (!isQuitting && code !== 0) {
+        setTimeout(() => {
+          console.log('[WindowTracker] Restarting...')
+          startWindowTracker()
+        }, 5000)
+      }
+    })
+
+    // 应用退出时停止监听器
+    process.on('exit', () => {
+      if (windowTracker) {
+        windowTracker.kill()
+      }
+    })
+  } catch (error) {
+    console.error('[WindowTracker] Failed to start window tracker:', error)
+  }
+}
+
+/**
+ * 窗口变化处理
+ */
+function onWindowChange(windowInfo: WindowInfo): void {
+  currentWindowInfo = windowInfo
+  console.log('[WindowTracker] Window changed:', windowInfo.appName, '-', windowInfo.windowTitle)
+
+  // 发送窗口信息到渲染进程
+  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+    mainWindowRef.webContents.send('window-change', windowInfo)
+  }
+}
+
+/**
+ * 获取当前窗口信息
+ */
+export function getCurrentWindowInfo(): WindowInfo | null {
+  return currentWindowInfo
+}
+
+/**
+ * 停止窗口监听
+ */
+export function stopWindowTracker(): void {
+  if (windowTracker) {
+    windowTracker.kill()
+    windowTracker = null
+    console.log('[WindowTracker] Window tracker stopped')
+  }
+}
+
+// ========== 行为模式识别 ==========
+
+/**
+ * 初始化模式识别引擎
+ */
+function initPatternEngine(): void {
+  console.log('[PatternEngine] Initializing pattern engine...')
+
+  // 设置模式切换回调
+  patternEngine.setOnPatternChange(async (pattern, stats) => {
+    console.log(`[PatternEngine] Pattern changed to ${pattern}, duration: ${stats.duration}ms`)
+
+    // 发送模式变化到渲染进程
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.webContents.send('pattern-changed', {
+        pattern,
+        stats: {
+          ...stats,
+          // 序列化 BigInt 值
+          duration: Number(stats.duration)
+        }
+      })
+    }
+
+    // 保存模式数据到数据库
+    await savePatternStats(stats)
+  })
+
+  console.log('[PatternEngine] Pattern engine initialized')
+}
+
+/**
+ * 保存模式统计数据到数据库
+ */
+async function savePatternStats(stats: PatternStats): Promise<void> {
+  try {
+    const db = getDatabase()
+    const today = getTodayDate()
+
+    // 查找今天的统计
+    let todayStat = findDailyStatByDate(today)
+    if (!todayStat) {
+      todayStat = createDefaultDailyStat(today)
+      db.data.dailyStats.push(todayStat)
+    }
+
+    // 添加模式记录
+    todayStat.patterns.push(stats)
+
+    // 更新模式汇总
+    todayStat.patternSummary = patternEngine.getTodayPatternSummary()
+
+    // 保存到数据库
+    upsertDailyStat(todayStat)
+    await saveData()
+
+    console.log('[PatternEngine] Saved pattern stats:', stats.pattern, 'duration:', stats.duration)
+  } catch (error) {
+    console.error('[PatternEngine] Failed to save pattern stats:', error)
+  }
+}
+
+/**
+ * 获取当前行为模式
+ */
+export function getCurrentPattern(): BehaviorPattern {
+  return patternEngine.getCurrentPattern()
+}
+
+/**
+ * 获取当前模式统计
+ */
+export function getCurrentPatternStats() {
+  return patternEngine.getCurrentStats()
+}
+
+/**
+ * 获取模式历史
+ */
+export function getPatternHistory() {
+  return patternEngine.getPatternHistory()
+}
+
+/**
+ * 获取今日模式汇总
+ */
+export function getTodayPatternSummary() {
+  return patternEngine.getTodayPatternSummary()
+}
+
+/**
+ * 检测工作时间摸鱼
+ */
+export function detectSlackDuringWork() {
+  return patternEngine.detectSlackDuringWork()
+}
+
+/**
+ * 分析游戏对工作效率的影响
+ */
+export function analyzeGamingImpact() {
+  return patternEngine.analyzeGamingImpact()
 }

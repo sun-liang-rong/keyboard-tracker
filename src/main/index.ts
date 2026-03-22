@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } from 'electron'
 import { join } from 'path'
-import { startKeyboardTracker, getTodayCount, initTodayCount, getHourlyDistribution, flushData, setFloatingWindowUpdater, getCategoryCounts, getTodayTopKeys, getComboCounts, getCurrentTitle, getUnlockedTitlesList, initSystemStateMonitoring, getPerformanceStats } from './tracker'
+import { startKeyboardTracker, getTodayCount, initTodayCount, getHourlyDistribution, flushData, setFloatingWindowUpdater, getCategoryCounts, getTodayTopKeys, getComboCounts, getCurrentTitle, getUnlockedTitlesList, initSystemStateMonitoring, getTodayPatternSummary, getPatternHistory, detectSlackDuringWork, analyzeGamingImpact } from './tracker'
 import { initDatabase, saveData, getDatabase, findDailyStatByDate, createDefaultComboCounts } from './database'
 
 /**
@@ -24,7 +24,7 @@ let mainWindow: BrowserWindow | null = null
 let floatingWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let dateCheckInterval: NodeJS.Timeout | null = null
-let isQuitting = false // 防止递归退出
+export let isQuitting = false // 防止递归退出
 
 
 /**
@@ -372,6 +372,57 @@ ipcMain.handle('toggle-floating-window', async (_, show: boolean) => {
     return true
   }
   return false
+})
+
+// 行为模式识别 IPC 处理
+ipcMain.handle('get-pattern-summary', async () => {
+  try {
+    return getTodayPatternSummary()
+  } catch (error) {
+    console.error('[Main] Failed to get pattern summary:', error)
+    return {
+      work: { duration: 0, percentage: 0 },
+      slack: { duration: 0, percentage: 0 },
+      gaming: { duration: 0, percentage: 0 },
+      idle: { duration: 0, percentage: 0 }
+    }
+  }
+})
+
+ipcMain.handle('get-pattern-history', async () => {
+  try {
+    return getPatternHistory()
+  } catch (error) {
+    console.error('[Main] Failed to get pattern history:', error)
+    return []
+  }
+})
+
+ipcMain.handle('detect-slack-during-work', async () => {
+  try {
+    return detectSlackDuringWork()
+  } catch (error) {
+    console.error('[Main] Failed to detect slack during work:', error)
+    return {
+      isAbnormal: false,
+      slackDuration: 0,
+      workDuration: 0,
+      suggestion: ''
+    }
+  }
+})
+
+ipcMain.handle('analyze-gaming-impact', async () => {
+  try {
+    return analyzeGamingImpact()
+  } catch (error) {
+    console.error('[Main] Failed to analyze gaming impact:', error)
+    return {
+      gamingTime: 0,
+      postGamingEfficiency: 100,
+      recommendation: ''
+    }
+  }
 })
 
 // 监听悬浮窗加载完成，发送初始计数值
