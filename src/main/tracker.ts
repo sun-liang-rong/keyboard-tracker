@@ -407,6 +407,9 @@ export async function initTodayCount(): Promise<void> {
       // 使用 upsertDailyStat 确保索引正确更新
       upsertDailyStat(prevDayStat)
 
+      // 保存到数据库（关键！必须调用才能写入文件）
+      await saveData()
+
       // 重置内存中的计数
       todayCount = 0
       todayDate = today
