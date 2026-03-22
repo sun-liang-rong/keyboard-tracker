@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(ELECTRON_ENABLE_LOGGING=1 timeout 10 npm run dev)",
+      "Bash(pkill -9 -f \"keyboard-tracker.*Electron\")"
+    ]
+  }
+}
