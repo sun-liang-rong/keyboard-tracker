@@ -7,7 +7,8 @@
       "Read(//d//**)",
       "Read(//d/Project/**)",
       "Bash(powershell -Command \"& 'D:\\\\Project\\\\Compiler\\\\Ahk2Exe.exe' /in 'native\\\\windows\\\\keytracker.ahk' /out 'src\\\\bin\\\\keytracker-win.exe' /base 'D:\\\\Project\\\\v2\\\\AutoHotkey64.exe'\")",
-      "Bash(powershell -Command \"& 'D:\\\\Project\\\\Compiler\\\\Ahk2Exe.exe' /help\")"
+      "Bash(powershell -Command \"& 'D:\\\\Project\\\\Compiler\\\\Ahk2Exe.exe' /help\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

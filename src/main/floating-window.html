@@ -4,181 +4,328 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Floating Window</title>
+  
+  <!--
+    ============================================================
+    悬浮窗样式
+    ============================================================
+    
+    设计要点：
+    1. 透明背景 - 与桌面融合
+    2. 毛玻璃效果 - 现代化视觉
+    3. 智能鼠标穿透 - 不遮挡其他窗口操作
+    4. 可拖拽 - 用户可自由定位
+    5. 点击打开主界面 - 快速访问
+  -->
   <style>
+    /* --------------------------------------------------------
+       全局重置
+       -------------------------------------------------------- */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      user-select: none;
-      -webkit-user-drag: none;
+      user-select: none;        /* 禁止文字选中 */
+      -webkit-user-drag: none;  /* 禁止拖拽图片 */
     }
 
+    /* --------------------------------------------------------
+       页面尺寸设置
+       与 BrowserWindow 创建时的尺寸保持一致
+       -------------------------------------------------------- */
     html, body {
       width: 100px;
       height: 30px;
-      overflow: hidden;
+      overflow: hidden;  /* 防止内容溢出 */
     }
 
+    /* --------------------------------------------------------
+       body 样式
+       -------------------------------------------------------- */
     body {
       width: 100px;
       height: 30px;
+      /* 系统字体栈，在各平台上使用最佳字体 */
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: transparent;
+      background: transparent;  /* 透明背景，让窗口圆角生效 */
       overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
+    /* --------------------------------------------------------
+       悬浮窗容器样式
+       这是主要的视觉元素
+       -------------------------------------------------------- */
     #floatingWindow {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 3px;
+      gap: 3px;                 /* 元素间距 */
       padding: 2px 6px;
       width: 100px;
       height: 30px;
+      
+      /* 深色半透明背景 */
       background: rgba(31, 41, 55, 0.9);
+      
+      /* 毛玻璃模糊效果 */
       backdrop-filter: blur(8px);
+      
+      /* 圆角 */
       border-radius: 10px;
+      
+      /* 阴影增加层次感 */
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+      
+      /* 微妙的边框 */
       border: 1px solid rgba(255, 255, 255, 0.1);
+      
+      /* 鼠标样式：可抓取 */
       cursor: grab;
     }
 
+    /* --------------------------------------------------------
+       悬停效果
+       -------------------------------------------------------- */
     #floatingWindow:hover {
       opacity: 1;
       background: rgba(31, 41, 55, 0.95);
     }
 
+    /* --------------------------------------------------------
+       拖拽中状态
+       -------------------------------------------------------- */
     #floatingWindow.dragging {
-      cursor: grabbing;
+      cursor: grabbing;  /* 鼠标样式：抓取中 */
       opacity: 1;
     }
 
+    /* --------------------------------------------------------
+       Logo 图标样式
+       -------------------------------------------------------- */
     .icon {
       width: 12px;
       height: 12px;
       object-fit: contain;
-      flex-shrink: 0;
+      flex-shrink: 0;         /* 防止被压缩 */
       display: block;
-      pointer-events: none; /* 让点击穿透到父元素 */
+      pointer-events: none;   /* 让点击事件穿透到父元素 */
     }
 
+    /* --------------------------------------------------------
+       计数数字样式
+       -------------------------------------------------------- */
     .count {
       font-size: 11px;
-      font-weight: 600;
-      color: #f3f4f6;
+      font-weight: 600;       /* 半粗体 */
+      color: #f3f4f6;         /* 浅灰色 */
       flex-shrink: 0;
       line-height: 1;
       pointer-events: none;
     }
 
+    /* --------------------------------------------------------
+       标签文字样式（"今日:"）
+       -------------------------------------------------------- */
     .label {
       font-size: 10px;
-      color: #9ca3af;
+      color: #9ca3af;         /* 中灰色 */
       flex-shrink: 0;
       line-height: 1;
       pointer-events: none;
     }
   </style>
 </head>
+
 <body>
+  <!--
+    ============================================================
+    悬浮窗 HTML 结构
+    ============================================================
+    
+    布局：[Logo图标] [今日:] [数字]
+  -->
   <div id="floatingWindow">
     <img class="icon" id="logo" src="" alt="" />
     <span class="label">今日:</span>
     <span class="count" id="count">0</span>
   </div>
 
+  <!--
+    ============================================================
+    悬浮窗脚本
+    ============================================================
+    
+    功能：
+    1. 接收主进程发来的计数更新
+    2. 实现拖拽功能
+    3. 智能鼠标穿透控制
+    4. 点击打开主界面
+  -->
   <script>
+    // --------------------------------------------------------
+    // 依赖导入
+    // 注意：悬浮窗使用 nodeIntegration: true，可以直接使用 require
+    // --------------------------------------------------------
     const { ipcRenderer } = require('electron');
+    
+    // DOM 元素引用
     const floatingWindow = document.getElementById('floatingWindow');
     const countEl = document.getElementById('count');
     const logoEl = document.getElementById('logo');
 
-    let isDragging = false;
-    let hasMoved = false;
-    let dragStartPos = { x: 0, y: 0 };
-    const DRAG_THRESHOLD = 5;
+    // --------------------------------------------------------
+    // 拖拽状态变量
+    // --------------------------------------------------------
+    let isDragging = false;              // 是否正在拖拽
+    let hasMoved = false;                // 是否发生了移动（用于区分点击和拖拽）
+    let dragStartPos = { x: 0, y: 0 };   // 拖拽起始位置
+    const DRAG_THRESHOLD = 5;            // 拖拽判定阈值（像素），小于此值视为点击
 
-    // 更新计数
+    // --------------------------------------------------------
+    // IPC 事件监听
+    // --------------------------------------------------------
+
+    /**
+     * 监听计数更新事件
+     * 主进程在每次按键时会发送此事件
+     */
     ipcRenderer.on('update-count', (_, count) => {
+      // 使用 toLocaleString 格式化数字（如：1,234）
       countEl.textContent = count.toLocaleString();
     });
 
-    // 接收 logo 路径并设置图片
+    /**
+     * 接收并设置 Logo 图片路径
+     * 主进程在窗口加载完成后发送
+     */
     ipcRenderer.on('logo-path', (_, logoPath) => {
       logoEl.src = logoPath;
     });
 
-    // 通知主进程悬浮窗已加载完成
+    /**
+     * 通知主进程悬浮窗已加载完成
+     * 用于发送初始计数
+     */
     ipcRenderer.send('floating-window-ready');
 
-    // 智能鼠标穿透：鼠标在内容上时不穿透，离开时穿透
-    // 延迟开启默认穿透，确保窗口已渲染
+    // --------------------------------------------------------
+    // 智能鼠标穿透
+    // --------------------------------------------------------
+    
+    /**
+     * 智能穿透逻辑：
+     * - 默认开启穿透，让点击传递到下层窗口
+     * - 鼠标进入悬浮窗时关闭穿透，允许交互
+     * - 鼠标离开时恢复穿透
+     * 
+     * 这样悬浮窗既不会阻挡其他窗口，又能被用户操作
+     */
+    
+    // 延迟开启默认穿透，确保窗口已完全渲染
     setTimeout(() => {
       ipcRenderer.send('set-floating-ignore-mouse', true);
     }, 100);
 
+    // 鼠标进入：关闭穿透，允许交互
     floatingWindow.addEventListener('mouseenter', () => {
       ipcRenderer.send('set-floating-ignore-mouse', false);
     });
 
+    // 鼠标离开：开启穿透（非拖拽状态）
     floatingWindow.addEventListener('mouseleave', () => {
       if (!isDragging) {
         ipcRenderer.send('set-floating-ignore-mouse', true);
       }
     });
 
-    // 鼠标按下 - 开始拖拽
+    // --------------------------------------------------------
+    // 拖拽功能实现
+    // --------------------------------------------------------
+
+    /**
+     * 鼠标按下事件
+     * 开始拖拽流程
+     */
     floatingWindow.addEventListener('mousedown', (e) => {
+      // 只响应左键（button === 0）
       if (e.button === 0) {
         isDragging = true;
         hasMoved = false;
         dragStartPos = { x: e.screenX, y: e.screenY };
+        
+        // 添加拖拽样式
         floatingWindow.classList.add('dragging');
+        
         // 确保拖拽时鼠标穿透关闭
         ipcRenderer.send('set-floating-ignore-mouse', false);
+        
+        // 通知主进程开始拖拽，传递当前鼠标位置
         ipcRenderer.send('start-drag', { x: e.screenX, y: e.screenY });
       }
     });
 
-    // 鼠标移动 - 拖拽中（节流，每16ms最多发送一次）
-    let lastDragTime = 0;
+    /**
+     * 鼠标移动事件
+     * 拖拽过程中更新窗口位置
+     */
+    let lastDragTime = 0;  // 用于节流控制
+    
     window.addEventListener('mousemove', (e) => {
       if (isDragging) {
+        // 节流：约 60fps，每 16ms 最多发送一次
         const now = Date.now();
-        if (now - lastDragTime < 16) return; // 约60fps
+        if (now - lastDragTime < 16) return;
         lastDragTime = now;
 
+        // 计算移动距离，判断是否超过阈值
         const moveDistance = Math.sqrt(
           Math.pow(e.screenX - dragStartPos.x, 2) +
           Math.pow(e.screenY - dragStartPos.y, 2)
         );
+        
         if (moveDistance > DRAG_THRESHOLD) {
           hasMoved = true;
         }
+        
+        // 通知主进程更新窗口位置
         ipcRenderer.send('dragging', { x: e.screenX, y: e.screenY });
       }
     });
 
-    // 鼠标释放 - 结束拖拽
+    /**
+     * 鼠标释放事件
+     * 结束拖拽流程
+     */
     window.addEventListener('mouseup', () => {
       if (isDragging) {
         isDragging = false;
         floatingWindow.classList.remove('dragging');
-        // 拖拽结束后，检查鼠标是否还在悬浮窗内
+        
+        // 检查鼠标是否还在悬浮窗内
         const rect = floatingWindow.getBoundingClientRect();
         const mouseX = window.event?.clientX || 0;
         const mouseY = window.event?.clientY || 0;
-        const isInside = mouseX >= 0 && mouseX <= rect.width && mouseY >= 0 && mouseY <= rect.height;
+        const isInside = mouseX >= 0 && mouseX <= rect.width && 
+                         mouseY >= 0 && mouseY <= rect.height;
+        
+        // 如果鼠标在悬浮窗外，恢复鼠标穿透
         if (!isInside) {
           ipcRenderer.send('set-floating-ignore-mouse', true);
         }
       }
     });
 
-    // 点击打开主界面（只有没有拖拽时才触发）
+    // --------------------------------------------------------
+    // 点击事件
+    // --------------------------------------------------------
+
+    /**
+     * 点击打开主界面
+     * 只有没有发生拖拽时才触发（区分点击和拖拽）
+     */
     floatingWindow.addEventListener('click', (e) => {
       if (!hasMoved) {
         ipcRenderer.send('show-main-window');
@@ -186,10 +333,17 @@
       hasMoved = false;
     });
 
-    // 右键菜单
+    // --------------------------------------------------------
+    // 右键菜单（预留）
+    // --------------------------------------------------------
+
+    /**
+     * 右键菜单事件
+     * 目前仅阻止默认行为，可以扩展显示自定义菜单
+     */
     floatingWindow.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      ipcRenderer.send('show-floating-menu');
+      // TODO: 可以添加自定义右键菜单功能
     });
   </script>
 </body>
