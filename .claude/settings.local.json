@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm run:*)",
       "Bash(ELECTRON_ENABLE_LOGGING=1 timeout 10 npm run dev)",
-      "Bash(pkill -9 -f \"keyboard-tracker.*Electron\")"
+      "Bash(pkill -9 -f \"keyboard-tracker.*Electron\")",
+      "Read(//d//**)",
+      "Read(//d/Project/**)",
+      "Bash(powershell -Command \"& 'D:\\\\Project\\\\Compiler\\\\Ahk2Exe.exe' /in 'native\\\\windows\\\\keytracker.ahk' /out 'src\\\\bin\\\\keytracker-win.exe' /base 'D:\\\\Project\\\\v2\\\\AutoHotkey64.exe'\")",
+      "Bash(powershell -Command \"& 'D:\\\\Project\\\\Compiler\\\\Ahk2Exe.exe' /help\")"
     ]
   }
 }

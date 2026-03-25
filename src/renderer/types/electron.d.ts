@@ -75,63 +75,16 @@ export interface TodayStatsResponse {
   unlockedTitles: Title[]
 }
 
-// 行为模式识别类型
-export enum BehaviorPattern {
-  WORK = 'work',
-  SLACK = 'slack',
-  GAMING = 'gaming',
-  IDLE = 'idle'
-}
-
-export interface PatternSummary {
-  work: { duration: number; percentage: number }
-  slack: { duration: number; percentage: number }
-  gaming: { duration: number; percentage: number }
-  idle: { duration: number; percentage: number }
-}
-
-export interface PatternStats {
-  pattern: BehaviorPattern | string
-  startTime: number
-  endTime: number
-  duration: number
-  keyCount: number
-  appName: string
-}
-
-export interface SlackAlert {
-  isAbnormal: boolean
-  slackDuration: number
-  workDuration: number
-  suggestion: string
-}
-
-export interface GamingAnalysis {
-  gamingTime: number
-  postGamingEfficiency: number
-  recommendation: string
-}
-
-export interface WindowInfo {
-  appName: string
-  bundleId?: string
-  windowTitle: string
-  timestamp: number
-}
-
 // Electron API 类型声明
 export interface ElectronAPI {
+  // 平台信息
+  platform: string
+
   // 统计数据
   getTodayStats: () => Promise<TodayStatsResponse>
   getStatsByDate: (date: string) => Promise<TodayStatsResponse>
   getWeekStats: () => Promise<{ totalCount: number; dailyCounts: number[]; labels: string[] }>
   getMonthStats: () => Promise<{ totalCount: number; dailyData: DayData[]; daysInMonth: number }>
-
-  // 行为模式识别
-  getPatternSummary: () => Promise<PatternSummary>
-  getPatternHistory: () => Promise<PatternStats[]>
-  detectSlackDuringWork: () => Promise<SlackAlert>
-  analyzeGamingImpact: () => Promise<GamingAnalysis>
 
   // 设置
   getSettings: () => Promise<{
@@ -144,6 +97,7 @@ export interface ElectronAPI {
 
   // 悬浮窗控制
   toggleFloatingWindow: (show: boolean) => Promise<boolean>
+  setFloatingIgnoreMouse: (ignore: boolean) => void
 
   // 窗口控制
   minimizeWindow: () => Promise<void>
@@ -158,15 +112,6 @@ export interface ElectronAPI {
     comboCounts: ComboCounts
     currentTitle: Title | null
   }) => void) => void
-
-  // 监听行为模式变化
-  onPatternChanged: (callback: (data: {
-    pattern: BehaviorPattern | string
-    stats: PatternStats
-  }) => void) => void
-
-  // 监听窗口变化
-  onWindowChange: (callback: (data: WindowInfo) => void) => void
 }
 
 declare global {

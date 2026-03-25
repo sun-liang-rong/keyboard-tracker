@@ -313,10 +313,28 @@ export const useStatsStore = defineStore('stats', () => {
         if (data.currentTitle !== undefined) {
           currentTitle.value = data.currentTitle
         }
+
+        // 更新本月热力图中的今日数据
+        updateMonthDailyData(data.count)
       })
       isListening = true
     } else {
       console.error('[Renderer] electronAPI not available for keystroke listener')
+    }
+  }
+
+  // 更新本月热力图中的今日数据
+  function updateMonthDailyData(todayCount: number) {
+    const today = new Date()
+    const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+    // 查找并更新今日的按键数
+    const todayIndex = monthDailyData.value.findIndex(day => day.date === todayDateStr)
+    if (todayIndex !== -1) {
+      monthDailyData.value[todayIndex].count = todayCount
+      // 重新计算本月总数
+      monthCount.value = monthDailyData.value.reduce((sum, day) => sum + day.count, 0)
+      console.log('[Renderer] Updated month daily data for today:', todayDateStr, 'count:', todayCount)
     }
   }
 

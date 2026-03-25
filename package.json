@@ -15,8 +15,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.60.0",
     "echarts": "^6.0.0",
     "lowdb": "^7.0.1",
+    "node-global-key-listener": "^0.3.0",
     "pinia": "^2.1.7",
     "vue": "^3.4.21",
     "vue-router": "^4.3.0"
@@ -45,7 +47,15 @@
     },
     "files": [
       "dist/**/*",
-      "src/bin/**/*"
+      "src/bin/**/*",
+      "node_modules/node-global-key-listener/bin/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "public",
+        "to": "public",
+        "filter": ["**/*"]
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -61,7 +71,8 @@
       ]
     },
     "win": {
-      "icon": "public/logo.png",
+      "icon": "public/logo.ico",
+      "requestedExecutionLevel": "requireAdministrator",
       "target": [
         {
           "target": "nsis",

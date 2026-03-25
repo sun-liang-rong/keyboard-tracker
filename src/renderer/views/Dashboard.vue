@@ -1,10 +1,11 @@
 <template>
-  <div class="min-h-screen">
-    <!-- 固定标题栏 -->
-    <header class="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+  <!-- 固定视口高度，禁止全局滚动 -->
+  <div class="h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900 transition-colors duration-300">
+    <!-- 固定标题栏 - 支持拖拽 -->
+    <header class="flex-shrink-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 shadow-sm" style="-webkit-app-region: drag">
       <div class="px-4 sm:px-6 py-4 flex items-center justify-between">
         <!-- Logo -->
-        <div class="flex items-center gap-2 sm:gap-3 ml-16 sm:ml-20">
+        <div class="flex items-center gap-2 sm:gap-3" :class="logoMarginClass">
           <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 overflow-hidden">
             <img src="/logo.png" alt="KeyboardTracker" class="w-full h-full object-cover" />
           </div>
@@ -16,8 +17,8 @@
           </div>
         </div>
 
-        <!-- 窗口控制按钮 -->
-        <div class="flex items-center gap-1 sm:gap-2">
+        <!-- 窗口控制按钮 - 不可拖拽区域 -->
+        <div class="flex items-center gap-1 sm:gap-2" style="-webkit-app-region: no-drag">
           <!-- 设置按钮 -->
           <button
             @click="$router.push('/settings')"
@@ -57,8 +58,8 @@
       </div>
     </header>
 
-    <!-- 内容区域 -->
-    <main class="p-4 sm:p-6">
+    <!-- 可滚动内容区域 -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
 
     <!-- 今日概览 -->
     <section class="mb-8">
@@ -87,14 +88,6 @@
           icon="🏆"
         />
       </div>
-    </section>
-
-    <!-- 行为模式识别 -->
-    <section class="mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-        🧠 行为模式识别
-      </h2>
-      <PatternDashboard />
     </section>
 
     <!-- 称号展示与组合键统计 -->
@@ -227,11 +220,17 @@ import CategoryChart from '../components/CategoryChart.vue'
 import TopKeysChart from '../components/TopKeysChart.vue'
 import ComboStats from '../components/ComboStats.vue'
 import TitleDisplay from '../components/TitleDisplay.vue'
-import PatternDashboard from '../components/PatternDashboard.vue'
 
 const statsStore = useStatsStore()
 const { activeHours, focusSessions, formattedTodayCount, categoryCount, topKeys, comboCounts, currentTitle, unlockedTitles } = storeToRefs(statsStore)
 let dateCheckInterval: ReturnType<typeof setInterval> | null = null
+
+// 检测平台
+const platform = window.electronAPI?.platform || 'win32'
+const isMac = platform === 'darwin'
+
+// Logo 左边距：Windows 靠左，macOS 保持原样
+const logoMarginClass = computed(() => isMac ? 'ml-16 sm:ml-20' : 'ml-2 sm:ml-4')
 
 /**
  * 获取本地时区的日期字符串 YYYY-MM-DD

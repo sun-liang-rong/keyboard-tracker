@@ -1,19 +1,73 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } from 'electron'
 import { join } from 'path'
-import { startKeyboardTracker, getTodayCount, initTodayCount, getHourlyDistribution, flushData, setFloatingWindowUpdater, getCategoryCounts, getTodayTopKeys, getComboCounts, getCurrentTitle, getUnlockedTitlesList, initSystemStateMonitoring, getTodayPatternSummary, getPatternHistory, detectSlackDuringWork, analyzeGamingImpact } from './tracker'
+import { existsSync } from 'fs'
+import { startKeyboardTracker, getTodayCount, initTodayCount, getHourlyDistribution, flushData, setFloatingWindowUpdater, getCategoryCounts, getTodayTopKeys, getComboCounts, getCurrentTitle, getUnlockedTitlesList, initSystemStateMonitoring } from './tracker'
 import { initDatabase, saveData, getDatabase, findDailyStatByDate, createDefaultComboCounts } from './database'
 
 /**
+ * 获取应用图标 (nativeImage)
+ * Windows 下使用 nativeImage 创建以确保任务栏显示正确
+ */
+function getAppIcon(): Electron.NativeImage {
+  const iconPath = getIconPath()
+  console.log('[Main] Loading icon from:', iconPath)
+  console.log('[Main] Icon file exists:', existsSync(iconPath))
+
+  try {
+    const icon = nativeImage.createFromPath(iconPath)
+    const size = icon.getSize()
+    console.log('[Main] Icon loaded, size:', size, 'isEmpty:', icon.isEmpty())
+
+    // Windows 需要特定尺寸的图标
+    if (process.platform === 'win32') {
+      if (!icon.isEmpty()) {
+        // 尝试创建 256x256 的图标用于任务栏
+        try {
+          const resizedIcon = icon.resize({ width: 256, height: 256 })
+          console.log('[Main] Resized icon for Windows:', resizedIcon.getSize())
+          return resizedIcon
+        } catch (e) {
+          console.log('[Main] Failed to resize icon, using original:', e)
+          return icon
+        }
+      }
+    }
+    return icon
+  } catch (error) {
+    console.error('[Main] Failed to load icon:', error)
+    return nativeImage.createEmpty()
+  }
+}
+
+/**
  * 获取图标路径
- * 开发环境: 从项目 public 目录
- * 生产环境: 从应用资源目录
+ * Windows 优先使用 .ico 格式，macOS 使用 .png
  */
 function getIconPath(): string {
   if (app.isPackaged) {
-    // 生产环境: resources/public/logo.png
+    // 生产环境
+    if (process.platform === 'win32') {
+      // Windows: 优先使用 ico
+      const icoPath = join(process.resourcesPath, 'public', 'logo.ico')
+      if (existsSync(icoPath)) {
+        console.log('[Main] Using .ico icon:', icoPath)
+        return icoPath
+      }
+      console.log('[Main] .ico not found, using .png')
+      return join(process.resourcesPath, 'public', 'logo.png')
+    }
     return join(process.resourcesPath, 'public', 'logo.png')
   } else {
-    // 开发环境: 项目根目录/public/logo.png
+    // 开发环境
+    if (process.platform === 'win32') {
+      const icoPath = join(process.cwd(), 'public', 'logo.ico')
+      if (existsSync(icoPath)) {
+        console.log('[Main] Using .ico icon (dev):', icoPath)
+        return icoPath
+      }
+      console.log('[Main] .ico not found (dev), using .png')
+      return join(process.cwd(), 'public', 'logo.png')
+    }
     return join(process.cwd(), 'public', 'logo.png')
   }
 }
@@ -332,17 +386,25 @@ ipcMain.handle('close-window', () => {
   }
 })
 
+// 拖拽状态
+let dragOffset = { x: 0, y: 0 }
+
 // 悬浮窗控制 API
 ipcMain.on('start-drag', (_, { x, y }) => {
   if (floatingWindow && !floatingWindow.isDestroyed()) {
     const [winX, winY] = floatingWindow.getPosition()
-    floatingWindow.webContents.send('drag-start', { winX, winY, mouseX: x, mouseY: y })
+    // 记录鼠标相对于窗口左上角的偏移
+    dragOffset.x = x - winX
+    dragOffset.y = y - winY
   }
 })
 
 ipcMain.on('dragging', (_, { x, y }) => {
   if (floatingWindow && !floatingWindow.isDestroyed()) {
-    floatingWindow.setPosition(x - 40, y - 20)
+    // 新位置 = 鼠标位置 - 偏移量
+    const newX = x - dragOffset.x
+    const newY = y - dragOffset.y
+    floatingWindow.setPosition(newX, newY)
   }
 })
 
@@ -374,54 +436,10 @@ ipcMain.handle('toggle-floating-window', async (_, show: boolean) => {
   return false
 })
 
-// 行为模式识别 IPC 处理
-ipcMain.handle('get-pattern-summary', async () => {
-  try {
-    return getTodayPatternSummary()
-  } catch (error) {
-    console.error('[Main] Failed to get pattern summary:', error)
-    return {
-      work: { duration: 0, percentage: 0 },
-      slack: { duration: 0, percentage: 0 },
-      gaming: { duration: 0, percentage: 0 },
-      idle: { duration: 0, percentage: 0 }
-    }
-  }
-})
-
-ipcMain.handle('get-pattern-history', async () => {
-  try {
-    return getPatternHistory()
-  } catch (error) {
-    console.error('[Main] Failed to get pattern history:', error)
-    return []
-  }
-})
-
-ipcMain.handle('detect-slack-during-work', async () => {
-  try {
-    return detectSlackDuringWork()
-  } catch (error) {
-    console.error('[Main] Failed to detect slack during work:', error)
-    return {
-      isAbnormal: false,
-      slackDuration: 0,
-      workDuration: 0,
-      suggestion: ''
-    }
-  }
-})
-
-ipcMain.handle('analyze-gaming-impact', async () => {
-  try {
-    return analyzeGamingImpact()
-  } catch (error) {
-    console.error('[Main] Failed to analyze gaming impact:', error)
-    return {
-      gamingTime: 0,
-      postGamingEfficiency: 100,
-      recommendation: ''
-    }
+// 设置悬浮窗鼠标穿透
+ipcMain.on('set-floating-ignore-mouse', (_, ignore: boolean) => {
+  if (floatingWindow && !floatingWindow.isDestroyed()) {
+    floatingWindow.setIgnoreMouseEvents(ignore, { forward: true })
   }
 })
 
@@ -445,24 +463,34 @@ function createMainWindow(showImmediately = true): void {
     return
   }
 
+  // 加载图标为 nativeImage
+  const windowIcon = getAppIcon()
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 900,
     minHeight: 600,
     titleBarStyle: 'hiddenInset',
-    icon: getIconPath(),
+    frame: false,
+    icon: windowIcon,
     show: false, // 初始隐藏，等加载完成后再显示
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // enableAutofill: false, // 禁用自动填充功能，修复 DevTools 报错
     },
   })
 
+  // Windows/Linux: 隐藏默认菜单栏
+  if (process.platform !== 'darwin') {
+    mainWindow.setMenu(null)
+  }
+
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-    mainWindow.webContents.openDevTools()
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
@@ -471,6 +499,20 @@ function createMainWindow(showImmediately = true): void {
   const win = mainWindow
   win.once('ready-to-show', () => {
     if (!win.isDestroyed() && showImmediately) {
+      // Windows: 显示前再次设置图标，确保任务栏显示正确
+      if (process.platform === 'win32') {
+        try {
+          const icon = getAppIcon()
+          if (!icon.isEmpty()) {
+            win.setIcon(icon)
+            console.log('[Main] Window icon set for Windows taskbar')
+          } else {
+            console.warn('[Main] Icon is empty, cannot set window icon')
+          }
+        } catch (error) {
+          console.error('[Main] Failed to set window icon:', error)
+        }
+      }
       win.show()
       win.focus()
     }
@@ -517,9 +559,10 @@ function createFloatingWindow(): void {
   const { width } = primaryDisplay.workAreaSize
 
   floatingWindow = new BrowserWindow({
-    width: 140,
-    height: 50,
-    x: width - 160,
+    width: 100,
+    height: 30,
+    useContentSize: true,  // 使用内容尺寸而非窗口尺寸
+    x: width - 120,
     y: 100,
     frame: false,
     alwaysOnTop: true,
@@ -529,6 +572,7 @@ function createFloatingWindow(): void {
     minimizable: false,
     maximizable: false,
     closable: false,
+    thickFrame: false,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -536,6 +580,15 @@ function createFloatingWindow(): void {
   })
 
   floatingWindow.loadFile(join(__dirname, 'floating-window.html'))
+
+  // 悬浮窗加载完成后，发送 logo 路径
+  floatingWindow.webContents.on('dom-ready', () => {
+    const logoPath = getIconPath()
+    // Windows 下将反斜杠转为正斜杠，并添加 file:// 协议
+    const normalizedPath = logoPath.replace(/\\/g, '/')
+    const fileUrl = normalizedPath.startsWith('file://') ? normalizedPath : `file://${normalizedPath}`
+    floatingWindow?.webContents.send('logo-path', fileUrl)
+  })
 
   // 悬浮窗不显示在任务栏
   floatingWindow.setSkipTaskbar(true)
@@ -553,16 +606,20 @@ function createTray(): void {
     return
   }
 
-  // 使用 logo.png 作为托盘图标
+  // 使用 logo 作为托盘图标
   try {
-    const iconPath = getIconPath()
-    const icon = nativeImage.createFromPath(iconPath)
+    const icon = getAppIcon()
+    if (icon.isEmpty()) {
+      console.log('[Main] Logo is empty, skipping tray creation')
+      return
+    }
     // macOS 需要调整图标大小
     if (process.platform === 'darwin') {
       tray = new Tray(icon.resize({ width: 22, height: 22 }))
     } else {
       tray = new Tray(icon)
     }
+    console.log('[Main] Tray icon created successfully')
   } catch (error) {
     console.log('[Main] Logo not found or failed to load, skipping tray creation:', error)
     return
@@ -595,6 +652,25 @@ function createTray(): void {
 app.whenReady().then(async () => {
   console.log('[Main] App is ready, initializing...')
 
+  // Windows: 设置任务栏图标
+  if (process.platform === 'win32') {
+    try {
+      const icon = getAppIcon()
+      console.log('[Main] Windows icon loaded, isEmpty:', icon.isEmpty(), 'size:', icon.getSize())
+
+      // 注意：Windows 任务栏图标主要来自：
+      // 1. 打包后的 .exe 文件图标（生产环境）
+      // 2. 窗口图标（已在 createMainWindow 中设置）
+      // 开发模式下会显示 Electron 图标，这是正常的
+
+      // 设置应用用户模型 ID，影响任务栏分组
+      app.setAppUserModelId('com.keyboardtracker.app')
+      console.log('[Main] Windows UserModelId set')
+    } catch (error) {
+      console.error('[Main] Failed to set Windows taskbar icon:', error)
+    }
+  }
+
   // 设置 macOS Dock 图标
   if (process.platform === 'darwin') {
     try {
@@ -610,6 +686,13 @@ app.whenReady().then(async () => {
   try {
     await initDatabase()
     console.log('[Main] Database initialized')
+    // 调试：打印数据库路径和统计
+    const db = getDatabase()
+    // 获取数据库文件路径
+    const dbPath = join(app.getPath('userData'), 'keyboard-tracker-db.json')
+    console.log('[Main] Database file path:', dbPath)
+    console.log('[Main] Daily stats count:', db.data.dailyStats.length)
+    console.log('[Main] Daily stats dates:', db.data.dailyStats.map(s => s.date))
   } catch (error) {
     console.error('[Main] Failed to initialize database:', error)
   }
@@ -689,7 +772,7 @@ app.whenReady().then(async () => {
 
   // 启动键盘监听器
   console.log('[Main] Starting keyboard tracker...')
-  startKeyboardTracker(mainWindow)
+  await startKeyboardTracker(mainWindow)
 
   // 清理旧的定时器（热更新时）
   if (dateCheckInterval) {
@@ -707,25 +790,24 @@ app.whenReady().then(async () => {
 })
 
 // 应用退出前保存数据
-app.on('before-quit', async (event) => {
+app.on('before-quit', (event) => {
   // 如果已经在退出过程中，不再处理
-  if (isQuitting) return
+  if (isQuitting) {
+    return
+  }
 
   console.log('[Main] App quitting, saving data...')
-  try {
-    // 阻止应用立即退出
-    event.preventDefault()
-    isQuitting = true
-    // 先保存 tracker 中的内存数据
-    await flushData()
+  event.preventDefault()
+  isQuitting = true
+
+  // 同步开始保存，但不等待完成
+  flushData().then(() => {
     console.log('[Main] Data saved successfully')
-    // 保存完成后退出应用
-    app.quit()
-  } catch (error) {
+    app.exit(0)
+  }).catch((error) => {
     console.error('[Main] Failed to save data:', error)
-    // 即使保存失败也退出应用
-    app.quit()
-  }
+    app.exit(1)
+  })
 })
 
 app.on('window-all-closed', () => {

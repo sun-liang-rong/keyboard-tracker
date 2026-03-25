@@ -1,7 +1,32 @@
 import { Low } from 'lowdb'
-import { JSONFile } from 'lowdb/node'
 import { app } from 'electron'
 import { join } from 'path'
+import { readFile, writeFile, access } from 'fs/promises'
+
+// 自定义 JSON 适配器 - 禁用原子写入以修复 Windows 上的 EXDEV 错误
+class JSONFileWithoutAtomic<T> {
+  private filename: string
+
+  constructor(filename: string) {
+    this.filename = filename
+  }
+
+  async read(): Promise<T | null> {
+    try {
+      await access(this.filename)
+      const data = await readFile(this.filename, 'utf-8')
+      return JSON.parse(data) as T
+    } catch {
+      return null
+    }
+  }
+
+  async write(data: T): Promise<void> {
+    const serialized = JSON.stringify(data, null, 2)
+    // 直接写入文件，不使用原子重命名
+    await writeFile(this.filename, serialized, 'utf-8')
+  }
+}
 
 // 数据类型定义
 export interface KeystrokeData {
@@ -12,31 +37,6 @@ export interface KeystrokeData {
   date: string
 }
 
-// 行为模式类型
-export enum BehaviorPattern {
-  WORK = 'work',
-  SLACK = 'slack',
-  GAMING = 'gaming',
-  IDLE = 'idle'
-}
-
-// 模式统计数据
-export interface PatternStats {
-  pattern: BehaviorPattern
-  startTime: number
-  endTime: number
-  duration: number
-  keyCount: number
-  appName: string
-}
-
-// 模式汇总
-export interface PatternSummary {
-  work: { duration: number; percentage: number }
-  slack: { duration: number; percentage: number }
-  gaming: { duration: number; percentage: number }
-  idle: { duration: number; percentage: number }
-}
 export interface KeyCategoryCount {
   letter: number      // 字母键 A-Z
   number: number      // 数字键 0-9
@@ -128,19 +128,6 @@ export interface DailyStat {
   topKeys: TopKeyItem[]
   // 新增：组合键统计
   comboCounts: ComboCounts
-  // 新增：行为模式统计
-  patterns: PatternStats[]
-  patternSummary: PatternSummary
-}
-
-// 创建默认的模式汇总
-export function createDefaultPatternSummary(): PatternSummary {
-  return {
-    work: { duration: 0, percentage: 0 },
-    slack: { duration: 0, percentage: 0 },
-    gaming: { duration: 0, percentage: 0 },
-    idle: { duration: 0, percentage: 0 }
-  }
 }
 
 // 创建默认的每日统计（用于兼容旧数据）
@@ -153,9 +140,7 @@ export function createDefaultDailyStat(date: string): DailyStat {
     focusSessions: 0,
     categoryCount: createDefaultCategoryCount(),
     topKeys: [],
-    comboCounts: createDefaultComboCounts(),
-    patterns: [],
-    patternSummary: createDefaultPatternSummary()
+    comboCounts: createDefaultComboCounts()
   }
 }
 
@@ -194,7 +179,7 @@ export async function initDatabase(): Promise<Low<DatabaseSchema>> {
   if (db) return db
 
   const dbPath = join(app.getPath('userData'), 'keyboard-tracker-db.json')
-  const adapter = new JSONFile<DatabaseSchema>(dbPath)
+  const adapter = new JSONFileWithoutAtomic<DatabaseSchema>(dbPath)
   db = new Low<DatabaseSchema>(adapter, defaultData)
 
   await db.read()

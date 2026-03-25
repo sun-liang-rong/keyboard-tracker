@@ -1,5 +1,6 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+  <!-- 固定视口，禁止全局滚动 -->
+  <div class="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
     <router-view />
   </div>
 </template>

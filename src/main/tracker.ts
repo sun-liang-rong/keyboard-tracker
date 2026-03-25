@@ -1,10 +1,23 @@
 import { spawn } from 'child_process'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { BrowserWindow, app, powerMonitor } from 'electron'
-import { isQuitting } from './index'
-import { patternEngine } from './pattern-engine'
-import { BehaviorPattern } from './database'
-import { getDatabase, saveData, findDailyStatByDate, createDefaultDailyStat, createDefaultCategoryCount, createDefaultComboCounts, upsertDailyStat, type KeyCategoryCount, type TopKeyItem, type ComboCounts, type PatternStats } from './database'
+import { getDatabase, saveData, findDailyStatByDate, createDefaultDailyStat, createDefaultCategoryCount, createDefaultComboCounts, upsertDailyStat, type KeyCategoryCount, type TopKeyItem, type ComboCounts } from './database'
+import { GlobalKeyboardListener } from 'node-global-key-listener'
+
+// Windows 键盘监听器的二进制文件路径
+function getWinKeyServerPath(): string {
+  if (app.isPackaged) {
+    // 生产环境: 从应用包内部查找
+    return join(app.getAppPath(), 'node_modules', 'node-global-key-listener', 'bin', 'WinKeyServer.exe')
+  } else {
+    // 开发环境: 从项目根目录查找
+    return join(process.cwd(), 'node_modules', 'node-global-key-listener', 'bin', 'WinKeyServer.exe')
+  }
+}
+
+// 键盘监听器实例
+let keyboardListener: GlobalKeyboardListener | null = null
 
 // ========== 性能优化配置 ==========
 const PERF_CONFIG = {
@@ -69,18 +82,6 @@ let lastMemoryCheck = 0
 
 // 悬浮窗更新回调
 let floatingWindowUpdater: ((count: number) => void) | null = null
-
-// 窗口监听
-let windowTracker: ReturnType<typeof spawn> | null = null
-let currentWindowInfo: WindowInfo | null = null
-
-// 窗口信息类型
-interface WindowInfo {
-  appName: string
-  bundleId?: string
-  windowTitle: string
-  timestamp: number
-}
 
 // UI更新节流
 let lastUIUpdateTime = 0
@@ -431,14 +432,16 @@ export async function initTodayCount(): Promise<void> {
       comboCounts = createDefaultComboCounts()
       keyCountMap.clear()
 
-      // 重置模式识别引擎
-      patternEngine.reset()
-
       console.log('[Tracker] Previous day data saved, reset for new day:', today)
     }
 
     // 查找今天的统计
     const todayStat = findDailyStatByDate(today)
+
+    console.log('[Tracker] Looking for today stat:', today, 'Found:', todayStat ? 'yes' : 'no')
+    if (todayStat) {
+      console.log('[Tracker] Today stat data:', JSON.stringify(todayStat))
+    }
 
     if (todayStat) {
       // 如果内存中没有今天的数据（应用刚启动或者是跨天），从数据库加载
@@ -471,9 +474,6 @@ export async function initTodayCount(): Promise<void> {
       comboCounts = createDefaultComboCounts()
       keyCountMap.clear()
 
-      // 重置模式识别引擎
-      patternEngine.reset()
-
       console.log('[Tracker] No previous data for today, starting fresh')
     }
   } catch (error) {
@@ -483,9 +483,6 @@ export async function initTodayCount(): Promise<void> {
     categoryCounts = createDefaultCategoryCount()
     comboCounts = createDefaultComboCounts()
     keyCountMap.clear()
-
-    // 重置模式识别引擎
-    patternEngine.reset()
   }
 }
 
@@ -509,32 +506,228 @@ function getBinPath(): string {
 
 /**
  * 启动键盘监听进程
- * 根据平台选择对应的可执行文件
+ * 根据平台选择对应的实现方式
+ * - Windows: 使用 node-global-key-listener
+ * - macOS: 使用原生二进制文件
  */
-export function startKeyboardTracker(mainWindow: BrowserWindow | null): void {
+export async function startKeyboardTracker(mainWindow: BrowserWindow | null): Promise<void> {
   mainWindowRef = mainWindow
-  const binPath = getBinPath()
 
   console.log('[Tracker] Platform:', process.platform)
-  console.log('[Tracker] Binary path:', binPath)
   console.log('[Tracker] Performance config:', PERF_CONFIG)
 
   // 初始化系统状态监听（锁屏、休眠）
   initSystemStateMonitoring()
 
+  if (process.platform === 'win32') {
+    // Windows: 使用 node-global-key-listener
+    await startWindowsKeyboardTracker()
+  } else {
+    // macOS: 使用原生二进制文件
+    startMacKeyboardTracker()
+  }
+}
+
+/**
+ * Windows 键盘监听器 - 使用 node-global-key-listener
+ */
+async function startWindowsKeyboardTracker(): Promise<void> {
+  console.log('[Tracker] Starting Windows keyboard tracker with node-global-key-listener...')
+  console.log('[Tracker] WinKeyServer.exe path:', getWinKeyServerPath())
+
+  // 检查二进制文件是否存在
+  if (!existsSync(getWinKeyServerPath())) {
+    console.error('[Tracker] WinKeyServer.exe not found at:', getWinKeyServerPath())
+    console.error('[Tracker] Please run: npm install')
+    return
+  }
+
+  try {
+    keyboardListener = new GlobalKeyboardListener({
+      windows: {
+        serverPath: getWinKeyServerPath(),
+        onError: (errorCode) => console.error('[WinKeyServer] ERROR: ' + errorCode),
+        onInfo: (info) => console.info('[WinKeyServer] INFO: ' + info)
+      }
+    })
+
+    // 监听按键按下 - 回调必须是同步的，不能是 async！
+    // 返回 false 让按键事件继续传递到其他应用程序
+    // 返回 true 或不返回会阻止按键传递（这是默认行为）
+    keyboardListener.addListener((e, down) => {
+      // 过滤鼠标事件 (keyCode 1-6 是鼠标按键)
+      const keyCode = e.vKey
+      if (keyCode >= 1 && keyCode <= 6) {
+        return false
+      }
+
+      if (e.state === 'DOWN') {
+        const keyName = e.name?.toLowerCase() || 'unknown'
+
+        console.log('[Tracker] Key pressed:', keyName, 'vKey:', keyCode, 'Raw:', e.rawKey?._nameRaw)
+
+        // 检测组合键
+        const combo = detectWindowsCombo(keyName, down)
+        if (combo) {
+          onComboPress(combo)
+        }
+
+        // 获取按键分类
+        const category = getKeyCategory(keyName)
+        onKeyPress(category, keyName, Date.now())
+      }
+
+      // 返回 false 确保按键事件继续传递到其他应用程序
+      return false
+    })
+
+    console.log('[Tracker] Windows keyboard tracker started successfully')
+
+    // 应用退出时停止监听器
+    process.on('exit', () => {
+      if (keyboardListener) {
+        keyboardListener.kill()
+        keyboardListener = null
+      }
+    })
+  } catch (error) {
+    console.error('[Tracker] Failed to start Windows keyboard tracker:', error)
+  }
+}
+
+/**
+ * 检测 Windows 组合键
+ * down 对象包含当前按下的键，键名是大写的 (e.g., "LEFT CTRL", "RIGHT META")
+ */
+function detectWindowsCombo(key: string, down: Record<string, boolean>): string | null {
+  const hasCtrl = down['LEFT CTRL'] || down['RIGHT CTRL']
+  const hasShift = down['LEFT SHIFT'] || down['RIGHT SHIFT']
+  const hasAlt = down['LEFT ALT'] || down['RIGHT ALT']
+  const hasWin = down['LEFT META'] || down['RIGHT META']
+
+  // Ctrl + C/V/X/A/Z
+  if (hasCtrl && !hasShift && !hasAlt) {
+    if (key === 'c') return 'COPY'
+    if (key === 'v') return 'PASTE'
+    if (key === 'x') return 'CUT'
+    if (key === 'a') return 'SELECT_ALL'
+    if (key === 'z') return 'UNDO'
+    if (key === 's') return 'SAVE'
+    if (key === 'f') return 'FIND'
+    if (key === 'p') return 'PRINT'
+    if (key === 'n') return 'NEW'
+    if (key === 'o') return 'OPEN'
+    if (key === 'w') return 'CLOSE_TAB'
+    if (key === 't') return 'NEW_TAB'
+    if (key === 'tab') return 'NEXT_TAB'
+  }
+
+  // Ctrl + Shift + Z/T
+  if (hasCtrl && hasShift && !hasAlt) {
+    if (key === 'z') return 'REDO'
+    if (key === 't') return 'REOPEN_TAB'
+    if (key === 'tab') return 'PREV_TAB'
+    if (key === 'esc') return 'TASK_MANAGER'
+  }
+
+  // Alt + Tab/F4
+  if (hasAlt && !hasCtrl && !hasShift) {
+    if (key === 'tab') return 'SWITCH_APP'
+    if (key === 'f4') return 'CLOSE_WINDOW'
+  }
+
+  // Win + D/E/R/L
+  if (hasWin && !hasCtrl && !hasAlt && !hasShift) {
+    if (key === 'd') return 'SHOW_DESKTOP'
+    if (key === 'e') return 'OPEN_EXPLORER'
+    if (key === 'r') return 'RUN_DIALOG'
+    if (key === 'l') return 'LOCK_SCREEN'
+  }
+
+  return null
+}
+
+/**
+ * 获取按键分类
+ * 支持 node-global-key-listener 和原生二进制两种格式
+ */
+function getKeyCategory(key: string): string {
+  const lowerKey = key.toLowerCase()
+
+  // 字母键
+  if (/^[a-z]$/.test(lowerKey)) return 'letter'
+
+  // 数字键
+  if (/^[0-9]$/.test(lowerKey)) return 'number'
+
+  // 功能键 (支持 F1-F24)
+  if (lowerKey.startsWith('f') && /^f([1-9]|1[0-9]|2[0-4])$/.test(lowerKey)) return 'function'
+
+  // 控制键 (支持两种命名格式)
+  const controlKeys = ['space', 'enter', 'return', 'tab', 'backspace', 'delete', 'escape',
+    'up', 'down', 'left', 'right', 'home', 'end', 'pageup', 'pagedown', 'insert',
+    'page up', 'page down', 'pageup', 'pagedown'] // 兼容不同格式
+  if (controlKeys.includes(lowerKey)) return 'control'
+
+  // 修饰键
+  const modifierKeys = ['left ctrl', 'right ctrl', 'left shift', 'right shift',
+    'left alt', 'right alt', 'left meta', 'right meta', 'capslock',
+    'ctrl', 'shift', 'alt', 'meta', 'command', 'windows'] // 兼容不同格式
+  if (modifierKeys.includes(lowerKey)) return 'modifier'
+
+  // 符号键
+  const symbolKeys = ['`', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/',
+    'comma', 'period', 'slash', 'backslash', 'semicolon', 'quote', 'grave',
+    'minus', 'equal', 'bracketleft', 'bracketright', 'minus', 'plus',
+    'lbracket', 'rbracket', 'apostrophe'] // 兼容不同格式
+  if (symbolKeys.includes(lowerKey)) return 'symbol'
+
+  // 数字键盘按键
+  if (lowerKey.startsWith('numpad') || lowerKey.startsWith('num ')) return 'number'
+
+  // 尝试匹配大写键名 (node-global-key-listener 格式)
+  const upperKey = key.toUpperCase()
+  const controlKeysUpper = ['SPACE', 'ENTER', 'RETURN', 'TAB', 'BACKSPACE', 'DELETE', 'ESCAPE',
+    'UP', 'DOWN', 'LEFT', 'RIGHT', 'HOME', 'END', 'PAGEUP', 'PAGEDOWN', 'INSERT',
+    'PAGE UP', 'PAGE DOWN']
+  if (controlKeysUpper.includes(upperKey)) return 'control'
+
+  return 'other'
+}
+
+/**
+ * macOS 键盘监听器 - 使用原生二进制文件
+ */
+function startMacKeyboardTracker(): void {
+  const binPath = getBinPath()
+
+  console.log('[Tracker] Binary path:', binPath)
+
   // 检查是否存在编译好的二进制文件
   try {
+    // 先检查文件是否存在
+    if (!existsSync(binPath)) {
+      console.error('[Tracker] Binary file not found:', binPath)
+      console.error('[Tracker] Please compile the native binary first:')
+      console.error('  macOS: cd native/macos && clang++ -framework CoreGraphics -framework CoreFoundation keylogger.mm -o keytracker-mac')
+      return
+    }
+
+    console.log('[Tracker] Binary file exists, spawning...')
+
     const tracker = spawn(binPath, [], {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
-    console.log('[Tracker] Keyboard tracker started')
+    console.log('[Tracker] Keyboard tracker started, PID:', tracker.pid)
 
     // 监听按键事件
     tracker.stdout.on('data', (data: Buffer) => {
-      const lines = data.toString().split('\n')
+      // 处理 Windows 换行符 \r\n 和 Unix 换行符 \n
+      const lines = data.toString().replace(/\r\n/g, '\n').split('\n')
       lines.forEach((line) => {
         const trimmed = line.trim()
+        if (!trimmed) return
         if (trimmed.startsWith('KEYDOWN')) {
           // 解析新的格式: KEYDOWN:category:keyName:timestamp
           const parts = trimmed.split(':')
@@ -568,6 +761,11 @@ export function startKeyboardTracker(mainWindow: BrowserWindow | null): void {
       console.error('[Tracker] Error:', data.toString())
     })
 
+    // 监听进程错误（如可执行文件不存在或启动失败）
+    tracker.on('error', (error) => {
+      console.error('[Tracker] Failed to start keyboard tracker:', error.message)
+    })
+
     // 进程退出
     tracker.on('exit', (code) => {
       console.log('[Tracker] Process exited with code:', code)
@@ -577,17 +775,8 @@ export function startKeyboardTracker(mainWindow: BrowserWindow | null): void {
     process.on('exit', () => {
       tracker.kill()
     })
-
-    // 启动窗口监听
-    startWindowTracker()
-
-    // 初始化模式识别引擎
-    initPatternEngine()
   } catch (error) {
-    console.error('[Tracker] Failed to start keyboard tracker:', error)
-    console.log('[Tracker] Please compile the native binary first:')
-    console.log('  macOS: cd native/macos && make')
-    console.log('  Windows: cd native/windows && compile-ahk.bat')
+    console.error('[Tracker] Unexpected error starting keyboard tracker:', error)
   }
 }
 
@@ -1051,11 +1240,11 @@ function processKeyEvent(category: string, keyName: string, timestamp: number = 
 
 /**
  * 处理单个按键事件（实际统计逻辑）
- * @param timestamp - 按键时间戳（毫秒），用于行为模式识别
+ * @param _timestamp - 按键时间戳（毫秒）- 暂未使用
  */
-function processSingleKeyEvent(category: string, keyName: string, timestamp: number): void {
-  // 更新模式识别引擎
-  patternEngine.addKeyEvent(category, keyName, timestamp)
+function processSingleKeyEvent(category: string, keyName: string, _timestamp: number): void {
+  // 更新总按键计数
+  todayCount++
 
   // 更新当前小时的计数
   const hour = getCurrentHour()
@@ -1118,216 +1307,4 @@ export function getPerformanceStats(): {
   }
 }
 
-// ========== 窗口监听功能 ==========
 
-/**
- * 获取窗口监听二进制文件路径
- */
-function getWindowObserverPath(): string {
-  const isWin = process.platform === 'win32'
-  const binName = isWin ? 'window_tracker-win.exe' : 'window_observer-mac'
-
-  if (app.isPackaged) {
-    return join(app.getAppPath(), 'src', 'bin', binName)
-  } else {
-    return join(process.cwd(), 'src', 'bin', binName)
-  }
-}
-
-/**
- * 启动窗口监听进程
- */
-function startWindowTracker(): void {
-  const binPath = getWindowObserverPath()
-
-  console.log('[WindowTracker] Binary path:', binPath)
-
-  try {
-    windowTracker = spawn(binPath, [], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-
-    console.log('[WindowTracker] Window tracker started')
-
-    // 监听窗口事件
-    windowTracker.stdout?.on('data', (data: Buffer) => {
-      const lines = data.toString().split('\n')
-      lines.forEach((line) => {
-        const trimmed = line.trim()
-        if (trimmed.startsWith('WINDOW:')) {
-          // 解析窗口信息: WINDOW:{"appName":"...","windowTitle":"...","timestamp":...}
-          const jsonStr = trimmed.substring(7) // 去掉 "WINDOW:" 前缀
-          try {
-            const windowInfo: WindowInfo = JSON.parse(jsonStr)
-            onWindowChange(windowInfo)
-          } catch (error) {
-            console.error('[WindowTracker] Failed to parse window info:', error)
-          }
-        } else if (trimmed === 'READY') {
-          console.log('[WindowTracker] Ready')
-        }
-      })
-    })
-
-    // 监听错误
-    windowTracker.stderr?.on('data', (data: Buffer) => {
-      console.error('[WindowTracker] Error:', data.toString())
-    })
-
-    // 进程退出
-    windowTracker.on('exit', (code) => {
-      console.log('[WindowTracker] Process exited with code:', code)
-      // 如果进程意外退出，5秒后尝试重启
-      if (!isQuitting && code !== 0) {
-        setTimeout(() => {
-          console.log('[WindowTracker] Restarting...')
-          startWindowTracker()
-        }, 5000)
-      }
-    })
-
-    // 应用退出时停止监听器
-    process.on('exit', () => {
-      if (windowTracker) {
-        windowTracker.kill()
-      }
-    })
-  } catch (error) {
-    console.error('[WindowTracker] Failed to start window tracker:', error)
-  }
-}
-
-/**
- * 窗口变化处理
- */
-function onWindowChange(windowInfo: WindowInfo): void {
-  currentWindowInfo = windowInfo
-  console.log('[WindowTracker] Window changed:', windowInfo.appName, '-', windowInfo.windowTitle)
-
-  // 发送窗口信息到渲染进程
-  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-    mainWindowRef.webContents.send('window-change', windowInfo)
-  }
-}
-
-/**
- * 获取当前窗口信息
- */
-export function getCurrentWindowInfo(): WindowInfo | null {
-  return currentWindowInfo
-}
-
-/**
- * 停止窗口监听
- */
-export function stopWindowTracker(): void {
-  if (windowTracker) {
-    windowTracker.kill()
-    windowTracker = null
-    console.log('[WindowTracker] Window tracker stopped')
-  }
-}
-
-// ========== 行为模式识别 ==========
-
-/**
- * 初始化模式识别引擎
- */
-function initPatternEngine(): void {
-  console.log('[PatternEngine] Initializing pattern engine...')
-
-  // 设置模式切换回调
-  patternEngine.setOnPatternChange(async (pattern, stats) => {
-    console.log(`[PatternEngine] Pattern changed to ${pattern}, duration: ${stats.duration}ms`)
-
-    // 发送模式变化到渲染进程
-    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-      mainWindowRef.webContents.send('pattern-changed', {
-        pattern,
-        stats: {
-          ...stats,
-          // 序列化 BigInt 值
-          duration: Number(stats.duration)
-        }
-      })
-    }
-
-    // 保存模式数据到数据库
-    await savePatternStats(stats)
-  })
-
-  console.log('[PatternEngine] Pattern engine initialized')
-}
-
-/**
- * 保存模式统计数据到数据库
- */
-async function savePatternStats(stats: PatternStats): Promise<void> {
-  try {
-    const db = getDatabase()
-    const today = getTodayDate()
-
-    // 查找今天的统计
-    let todayStat = findDailyStatByDate(today)
-    if (!todayStat) {
-      todayStat = createDefaultDailyStat(today)
-      db.data.dailyStats.push(todayStat)
-    }
-
-    // 添加模式记录
-    todayStat.patterns.push(stats)
-
-    // 更新模式汇总
-    todayStat.patternSummary = patternEngine.getTodayPatternSummary()
-
-    // 保存到数据库
-    upsertDailyStat(todayStat)
-    await saveData()
-
-    console.log('[PatternEngine] Saved pattern stats:', stats.pattern, 'duration:', stats.duration)
-  } catch (error) {
-    console.error('[PatternEngine] Failed to save pattern stats:', error)
-  }
-}
-
-/**
- * 获取当前行为模式
- */
-export function getCurrentPattern(): BehaviorPattern {
-  return patternEngine.getCurrentPattern()
-}
-
-/**
- * 获取当前模式统计
- */
-export function getCurrentPatternStats() {
-  return patternEngine.getCurrentStats()
-}
-
-/**
- * 获取模式历史
- */
-export function getPatternHistory() {
-  return patternEngine.getPatternHistory()
-}
-
-/**
- * 获取今日模式汇总
- */
-export function getTodayPatternSummary() {
-  return patternEngine.getTodayPatternSummary()
-}
-
-/**
- * 检测工作时间摸鱼
- */
-export function detectSlackDuringWork() {
-  return patternEngine.detectSlackDuringWork()
-}
-
-/**
- * 分析游戏对工作效率的影响
- */
-export function analyzeGamingImpact() {
-  return patternEngine.analyzeGamingImpact()
-}
