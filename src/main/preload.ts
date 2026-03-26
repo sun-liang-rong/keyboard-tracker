@@ -137,18 +137,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ----------------------------------------------------------
   // 窗口控制 API
   // ----------------------------------------------------------
-  
+
   /**
    * 最小化主窗口
    * 最小化时会自动显示悬浮窗（如果设置中启用）
    */
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
-  
+
   /**
    * 关闭主窗口
    * 触发应用退出流程，会先保存数据
    */
   closeWindow: () => ipcRenderer.invoke('close-window'),
+
+  /**
+   * 切换最大化状态
+   * @returns 当前是否最大化的 Promise
+   */
+  toggleMaximize: () => ipcRenderer.invoke('toggle-maximize'),
+
+  /**
+   * 获取当前最大化状态
+   * @returns 是否最大化
+   */
+  isMaximized: () => ipcRenderer.invoke('is-maximized'),
 
   // ----------------------------------------------------------
   // 事件监听 API
@@ -156,10 +168,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   /**
    * 监听键盘敲击更新事件
-   * 
+   *
    * 当用户按键时，主进程会发送此事件，包含最新的统计数据
    * 用于实现实时更新 UI 的功能
-   * 
+   *
    * @param callback - 接收更新数据的回调函数
    * @example
    * // 在 Vue 组件中
@@ -171,8 +183,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onKeystrokeUpdate: (callback: (data: {
     /** 今日总按键数 */
     count: number
+    /** 活跃分钟数 */
+    activeMinutes?: number
+    /** 最活跃小时 */
+    peakHour?: number
     /** 24小时分布，索引0-23对应0-23点 */
     hourlyDistribution: number[]
+    /** 每小时活跃分钟数 */
+    hourlyActiveMinutes?: number[]
     /** 按键分类统计 */
     categoryCount: {
       letter: number

@@ -8,7 +8,22 @@
       "Read(//d/Project/**)",
       "Bash(powershell -Command \"& 'D:\\\\Project\\\\Compiler\\\\Ahk2Exe.exe' /in 'native\\\\windows\\\\keytracker.ahk' /out 'src\\\\bin\\\\keytracker-win.exe' /base 'D:\\\\Project\\\\v2\\\\AutoHotkey64.exe'\")",
       "Bash(powershell -Command \"& 'D:\\\\Project\\\\Compiler\\\\Ahk2Exe.exe' /help\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:stitch.ai)",
+      "WebSearch",
+      "WebFetch(domain:app.stitch.ai)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'https://stitch.ai/api/projects/4652076986666599230/screens/ffa095c3399d4b9796b55c15d58bcb26' -OutFile 'stitch_assets/4652076986666599230/screen_data.json' -ErrorAction SilentlyContinue\" 2>&1)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'https://stitch.ai/projects/4652076986666599230' -OutFile 'stitch_assets/4652076986666599230/project.html' -ErrorAction SilentlyContinue\" 2>&1)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'https://stitch.dev/projects/4652076986666599230' -OutFile 'stitch_assets/test_dev.html' -TimeoutSec 10 -ErrorAction SilentlyContinue\" 2>&1)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'https://stitch.io/p/4652076986666599230' -OutFile 'stitch_assets/stitch_io_project.html' -TimeoutSec 15\" 2>&1)",
+      "WebFetch(domain:stitch.design)",
+      "Bash(npx skills:*)",
+      "Read(//c/Users/qd-sunliangrong/.agents/skills/**)",
+      "Bash(dir %USERPROFILE%.agentsskills /s)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'https://stitch.ai/api/v2/projects/4652076986666599230/screens/ffa095c3399d4b9796b55c15d58bcb26' -OutFile 'stitch_assets/test_v2.json' -TimeoutSec 10 -ErrorAction SilentlyContinue; if \\(Test-Path 'stitch_assets/test_v2.json'\\) { Write-Host 'V2 API: Success' } else { Write-Host 'V2 API: Failed' }\" 2>&1)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'https://stitch.ai/screens/ffa095c3399d4b9796b55c15d58bcb26' -OutFile 'stitch_assets/test_screen.html' -TimeoutSec 10 -ErrorAction SilentlyContinue; if \\(Test-Path 'stitch_assets/test_screen.html'\\) { Get-Content 'stitch_assets/test_screen.html' -Head 5 } else { Write-Host 'Direct screen: Failed' }\" 2>&1)",
+      "Bash(npx vue-tsc:*)"
     ]
   }
 }

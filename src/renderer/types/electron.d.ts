@@ -1,3 +1,7 @@
+/**
+ * Electron 渲染进程类型定义
+ */
+
 export interface DayData {
   date: string
   count: number
@@ -63,11 +67,15 @@ export interface ComboCounts {
   OTHER: number
 }
 
+/**
+ * 今日统计数据响应
+ */
 export interface TodayStatsResponse {
   count: number
-  activeHours: number
-  focusSessions: number
+  activeMinutes: number
+  peakHour: number
   hourlyDistribution: number[]
+  hourlyActiveMinutes: number[]
   categoryCount: KeyCategoryCount
   topKeys: TopKeyItem[]
   comboCounts: ComboCounts
@@ -102,11 +110,16 @@ export interface ElectronAPI {
   // 窗口控制
   minimizeWindow: () => Promise<void>
   closeWindow: () => Promise<void>
+  toggleMaximize: () => Promise<boolean>
+  isMaximized: () => Promise<boolean>
 
   // 监听事件
   onKeystrokeUpdate: (callback: (data: {
     count: number
+    activeMinutes?: number
+    peakHour?: number
     hourlyDistribution: number[]
+    hourlyActiveMinutes?: number[]
     categoryCount: KeyCategoryCount
     topKeys: TopKeyItem[]
     comboCounts: ComboCounts

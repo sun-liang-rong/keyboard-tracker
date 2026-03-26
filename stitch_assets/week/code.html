@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KeyboardTracker - 周趋势</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-error-container": "#93000a",
+              "on-secondary": "#ffffff",
+              "on-background": "#191c1e",
+              "surface-container-low": "#f2f4f6",
+              "surface-dim": "#d8dadc",
+              "surface-tint": "#0053db",
+              "on-tertiary-fixed": "#360f00",
+              "on-secondary-container": "#fffbff",
+              "surface-bright": "#f7f9fb",
+              "inverse-on-surface": "#eff1f3",
+              "secondary-container": "#8455ef",
+              "surface-container-highest": "#e0e3e5",
+              "on-secondary-fixed": "#23005c",
+              "surface-container-high": "#e6e8ea",
+              "primary": "#004ac6",
+              "on-primary": "#ffffff",
+              "error-container": "#ffdad6",
+              "primary-fixed": "#dbe1ff",
+              "error": "#ba1a1a",
+              "outline-variant": "#c3c6d7",
+              "on-tertiary-container": "#ffede6",
+              "on-secondary-fixed-variant": "#5516be",
+              "on-tertiary-fixed-variant": "#7d2d00",
+              "on-surface": "#191c1e",
+              "tertiary-fixed": "#ffdbcd",
+              "surface-variant": "#e0e3e5",
+              "on-tertiary": "#ffffff",
+              "background": "#f7f9fb",
+              "tertiary-fixed-dim": "#ffb596",
+              "tertiary": "#943700",
+              "on-surface-variant": "#434655",
+              "inverse-surface": "#2d3133",
+              "outline": "#737686",
+              "secondary": "#6b38d4",
+              "on-primary-fixed": "#00174b",
+              "secondary-fixed-dim": "#d0bcff",
+              "inverse-primary": "#b4c5ff",
+              "primary-container": "#2563eb",
+              "on-error": "#ffffff",
+              "on-primary-container": "#eeefff",
+              "surface-container": "#eceef0",
+              "surface-container-lowest": "#ffffff",
+              "surface": "#f7f9fb",
+              "on-primary-fixed-variant": "#003ea8",
+              "tertiary-container": "#bc4800",
+              "secondary-fixed": "#e9ddff",
+              "primary-fixed-dim": "#b4c5ff"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      body { font-family: 'Inter', sans-serif; }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-effect {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+      }
+    </style>
+</head>
+<body class="bg-background text-on-background flex h-screen overflow-hidden">
+<!-- SideNavBar Component -->
+<aside class="h-screen w-64 flex-shrink-0 bg-surface-container-low border-r-0 flex flex-col py-6 px-4 gap-8">
+<div class="flex flex-col gap-1 px-2">
+<h1 class="text-lg font-black text-primary tracking-tighter">KeyboardTracker</h1>
+<p class="text-xs text-on-surface-variant font-medium tracking-wide">数据分析专家</p>
+</div>
+<nav class="flex flex-col gap-2 flex-1">
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium tracking-wide text-on-surface-variant hover:text-primary hover:bg-white/50 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="today">today</span>
+                今日概览
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-bold tracking-wide text-primary bg-surface-container-lowest rounded-lg shadow-sm translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+                周趋势
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium tracking-wide text-on-surface-variant hover:text-primary hover:bg-white/50 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="assessment">assessment</span>
+                月度报告
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium tracking-wide text-on-surface-variant hover:text-primary hover:bg-white/50 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                设置
+            </a>
+</nav>
+<div class="mt-auto flex items-center gap-3 px-2">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center overflow-hidden">
+<img alt="用户头像" data-alt="professional portrait of a tech expert in a minimalist studio setting with soft blue ambient lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4fvdBFSp2RWRlh9vM6uz8tPTnlMXSinIgWRTTJa_cY_VZ_Sq-G5wYAXeel1BE8BmYk6Tw6vl-Hq1Z7-PRT-HmCwiq0o9WADL4FeMH1tX8dqqIqoKPDPswPNfyh-k0jzHau9VyMc2SWhw0S6n63W7ZA6DZK1c3-RxwnwcegVIABjofkim_kfqL3FwsOa1tYwyviA4MRW7iJ-Bd8kkqW6HEHb0HSDsv-_6FLn5msA5dH2jSsgBhZ8lOta_4LYiLJt_YM-zN2toXfgo"/>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-bold">高级用户</span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest">Premium Plan</span>
+</div>
+</div>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden relative">
+<!-- TopAppBar Component -->
+<header class="flex justify-between items-center px-6 w-full h-12 sticky top-0 z-50 bg-background/80 backdrop-blur-md">
+<div class="flex items-center gap-2">
+<span class="text-sm font-semibold text-on-surface-variant tracking-tight">周趋势报告 / <span class="text-on-surface">本周数据概览</span></span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center bg-surface-container-high rounded-full px-1 py-1">
+<button class="p-1.5 hover:bg-surface-container-highest rounded-full transition-colors active:opacity-70">
+<span class="material-symbols-outlined text-[18px]" data-icon="remove">remove</span>
+</button>
+<button class="p-1.5 hover:bg-surface-container-highest rounded-full transition-colors active:opacity-70">
+<span class="material-symbols-outlined text-[18px]" data-icon="check_box_outline_blank">check_box_outline_blank</span>
+</button>
+<button class="p-1.5 hover:bg-error-container text-error rounded-full transition-colors active:opacity-70">
+<span class="material-symbols-outlined text-[18px]" data-icon="close">close</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="flex-1 overflow-y-auto p-8 flex flex-col gap-8">
+<!-- Summary Stats Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="bg-surface-container-lowest p-6 rounded-xl flex flex-col justify-between transition-all hover:shadow-lg hover:shadow-primary/5 group">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">本周总击键数</span>
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform" data-icon="keyboard">keyboard</span>
+</div>
+<div>
+<div class="text-4xl font-black tracking-tighter text-on-surface">142.8k</div>
+<div class="text-xs text-primary font-bold mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="arrow_upward">arrow_upward</span> 12.5% 较上周
+                        </div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl flex flex-col justify-between transition-all hover:shadow-lg hover:shadow-secondary/5 group">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">活跃时长</span>
+<span class="material-symbols-outlined text-secondary group-hover:scale-110 transition-transform" data-icon="schedule">schedule</span>
+</div>
+<div>
+<div class="text-4xl font-black tracking-tighter text-on-surface">42h 15m</div>
+<div class="text-xs text-on-surface-variant font-medium mt-1">日均活跃 6.03 小时</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl flex flex-col justify-between transition-all hover:shadow-lg hover:shadow-primary/5 group">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">专注得分</span>
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform" data-icon="psychology">psychology</span>
+</div>
+<div>
+<div class="text-4xl font-black tracking-tighter text-on-surface">88/100</div>
+<div class="w-full bg-surface-container mt-3 h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 88%"></div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl flex flex-col justify-between transition-all hover:shadow-lg hover:shadow-secondary/5 group">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">平均打字速度</span>
+<span class="material-symbols-outlined text-secondary group-hover:scale-110 transition-transform" data-icon="speed">speed</span>
+</div>
+<div>
+<div class="text-4xl font-black tracking-tighter text-on-surface">94 WPM</div>
+<div class="text-xs text-secondary font-bold mt-1">最高记录 118 WPM</div>
+</div>
+</div>
+</section>
+<!-- Main Activity Trend Chart Area -->
+<section class="bg-surface-container-lowest p-8 rounded-xl shadow-sm relative overflow-hidden">
+<div class="flex justify-between items-end mb-12">
+<div>
+<h2 class="text-2xl font-black tracking-tight text-on-surface flex items-center gap-2">
+                            7天活跃度流
+                        </h2>
+<p class="text-on-surface-variant text-sm mt-1">击键频率实时映射</p>
+</div>
+<div class="bg-primary/5 px-4 py-2 rounded-full border border-primary/10">
+<span class="text-sm font-bold text-primary">最产出的一天：周三 (Wednesday)</span>
+</div>
+</div>
+<div class="flex items-end justify-between h-64 gap-4 px-4">
+<!-- Monday -->
+<div class="flex-1 flex flex-col items-center gap-4 group">
+<div class="w-full bg-surface-container-low rounded-t-full relative flex items-end justify-center transition-all group-hover:bg-surface-container">
+<div class="w-full bg-primary/20 rounded-t-full" style="height: 60%"></div>
+</div>
+<span class="text-xs font-bold text-on-surface-variant">周一</span>
+</div>
+<!-- Tuesday -->
+<div class="flex-1 flex flex-col items-center gap-4 group">
+<div class="w-full bg-surface-container-low rounded-t-full relative flex items-end justify-center transition-all group-hover:bg-surface-container">
+<div class="w-full bg-primary/40 rounded-t-full" style="height: 75%"></div>
+</div>
+<span class="text-xs font-bold text-on-surface-variant">周二</span>
+</div>
+<!-- Wednesday (Peak) -->
+<div class="flex-1 flex flex-col items-center gap-4 group">
+<div class="w-full bg-primary rounded-t-full relative flex items-end justify-center shadow-lg shadow-primary/20">
+<div class="absolute -top-10 bg-on-surface text-surface py-1 px-2 rounded text-[10px] font-bold">24.5k</div>
+<div class="w-full bg-primary/90 rounded-t-full" style="height: 100%"></div>
+</div>
+<span class="text-xs font-bold text-primary">周三</span>
+</div>
+<!-- Thursday -->
+<div class="flex-1 flex flex-col items-center gap-4 group">
+<div class="w-full bg-surface-container-low rounded-t-full relative flex items-end justify-center transition-all group-hover:bg-surface-container">
+<div class="w-full bg-primary/60 rounded-t-full" style="height: 82%"></div>
+</div>
+<span class="text-xs font-bold text-on-surface-variant">周四</span>
+</div>
+<!-- Friday -->
+<div class="flex-1 flex flex-col items-center gap-4 group">
+<div class="w-full bg-surface-container-low rounded-t-full relative flex items-end justify-center transition-all group-hover:bg-surface-container">
+<div class="w-full bg-primary/50 rounded-t-full" style="height: 70%"></div>
+</div>
+<span class="text-xs font-bold text-on-surface-variant">周五</span>
+</div>
+<!-- Saturday -->
+<div class="flex-1 flex flex-col items-center gap-4 group">
+<div class="w-full bg-surface-container-low rounded-t-full relative flex items-end justify-center transition-all group-hover:bg-surface-container">
+<div class="w-full bg-primary/20 rounded-t-full" style="height: 35%"></div>
+</div>
+<span class="text-xs font-bold text-on-surface-variant">周六</span>
+</div>
+<!-- Sunday -->
+<div class="flex-1 flex flex-col items-center gap-4 group">
+<div class="w-full bg-surface-container-low rounded-t-full relative flex items-end justify-center transition-all group-hover:bg-surface-container">
+<div class="w-full bg-primary/10 rounded-t-full" style="height: 20%"></div>
+</div>
+<span class="text-xs font-bold text-on-surface-variant">周日</span>
+</div>
+</div>
+</section>
+<!-- Bottom Section: Accuracy & Shortcuts -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+<!-- Error Rate & Accuracy Statistics -->
+<section class="bg-surface-container-lowest p-8 rounded-xl flex flex-col gap-6">
+<div class="flex justify-between items-center">
+<h3 class="text-lg font-bold tracking-tight">错误率统计</h3>
+<div class="text-3xl font-black text-secondary tracking-tighter">98.4% <span class="text-xs font-medium text-on-surface-variant tracking-normal">准确率</span></div>
+</div>
+<div class="space-y-4">
+<div class="p-4 bg-surface-container-low rounded-lg border-l-4 border-secondary">
+<p class="text-sm font-bold text-on-surface">趋势洞察</p>
+<p class="text-xs text-on-surface-variant mt-1 leading-relaxed">相比上周，您的退格键 (Backspace) 使用率下降了 8%，表明打字心流状态更加稳定。专注模式下准确率最高。</p>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="p-4 bg-surface-container-low rounded-lg">
+<span class="text-[10px] font-bold text-on-surface-variant block mb-1">最常纠错词</span>
+<span class="text-sm font-bold">Requirement</span>
+</div>
+<div class="p-4 bg-surface-container-low rounded-lg">
+<span class="text-[10px] font-bold text-on-surface-variant block mb-1">疲劳预警</span>
+<span class="text-sm font-bold">晚间 10 点后</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Shortcut Efficiency -->
+<section class="bg-surface-container-lowest p-8 rounded-xl flex flex-col gap-6">
+<h3 class="text-lg font-bold tracking-tight">快捷键效率</h3>
+<div class="space-y-3">
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg">
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold font-mono">CTRL</span>
+<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold font-mono">C</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-24 h-2 bg-surface-container-highest rounded-full">
+<div class="bg-primary h-full rounded-full" style="width: 85%"></div>
+</div>
+<span class="text-xs font-bold w-8 text-right">842</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg">
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold font-mono">CTRL</span>
+<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold font-mono">V</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-24 h-2 bg-surface-container-highest rounded-full">
+<div class="bg-primary h-full rounded-full" style="width: 78%"></div>
+</div>
+<span class="text-xs font-bold w-8 text-right">761</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg">
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold font-mono">ALT</span>
+<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold font-mono">TAB</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-24 h-2 bg-surface-container-highest rounded-full">
+<div class="bg-secondary h-full rounded-full" style="width: 60%"></div>
+</div>
+<span class="text-xs font-bold w-8 text-right">432</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg">
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold font-mono">CMD</span>
+<span class="bg-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold font-mono">S</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-24 h-2 bg-surface-container-highest rounded-full">
+<div class="bg-primary h-full rounded-full" style="width: 45%"></div>
+</div>
+<span class="text-xs font-bold w-8 text-right">311</span>
+</div>
+</div>
+</div>
+<button class="text-xs font-bold text-primary flex items-center justify-center gap-1 mt-auto hover:underline transition-all">
+                        查看完整列表 <span class="material-symbols-outlined text-[14px]" data-icon="chevron_right">chevron_right</span>
+</button>
+</section>
+</div>
+</div>
+</main>
+<!-- Contextual FAB (Hidden as per requirement for specific task views, but defined here for structural completeness) -->
+<!-- Suppressed for focused dashboard view -->
+</body></html>

@@ -1,6 +1,12 @@
 /**
  * 共享类型定义
  * 这些类型在 main 和 renderer 进程中都会使用
+ *
+ * 数据库表结构设计：
+ * - DailyStats: 每日统计汇总
+ * - TimeSlotStats: 按小时统计
+ * - TopKeyStats: 高频按键统计
+ * - UnlockedTitle: 已解锁称号
  */
 
 // ============================================================
@@ -84,20 +90,119 @@ export interface ComboCounts {
   OTHER: number         // 其他未识别的组合键
 }
 
+// ============================================================
+// 数据库表类型
+// ============================================================
+
 /**
- * 每日统计数据
- * 存储单日的完整键盘使用统计
+ * 每日统计表（DailyStats）
+ * 快速获取每日总敲击次数和活跃时间
  */
-export interface DailyStat {
-  date: string                    // 日期，格式 YYYY-MM-DD
-  totalCount: number              // 当日总按键数
-  hourlyDistribution: number[]    // 24 小时分布，索引 0-23 对应 0-23 点
-  activeHours: number             // 活跃小时数（有按键的小时数）
-  focusSessions: number           // 专注时段数（连续活跃的时间段）
-  categoryCount: KeyCategoryCount // 按键分类统计
-  topKeys: TopKeyItem[]           // 高频按键 TOP 20
-  comboCounts: ComboCounts        // 组合键统计
+export interface DailyStats {
+  id: string                      // UUID
+  date: string                    // 日期 YYYY-MM-DD
+  total_keystrokes: number        // 总敲击次数
+  active_minutes: number          // 活跃分钟数
+  peak_hour: number               // 最活跃小时 (0-23)
+  created_at: string              // 创建时间 ISO
+  updated_at: string              // 更新时间 ISO
+
+  // 按键分类统计（扁平化字段）
+  category_letter: number         // 字母键
+  category_number: number         // 数字键
+  category_function: number       // 功能键
+  category_control: number        // 控制键
+  category_symbol: number         // 符号键
+  category_modifier: number       // 修饰键
+  category_other: number          // 其他
+
+  // 组合键统计（扁平化字段）
+  combo_copy: number
+  combo_paste: number
+  combo_cut: number
+  combo_select_all: number
+  combo_undo: number
+  combo_redo: number
+  combo_save: number
+  combo_find: number
+  combo_print: number
+  combo_new: number
+  combo_open: number
+  combo_close_tab: number
+  combo_new_tab: number
+  combo_reopen_tab: number
+  combo_next_tab: number
+  combo_prev_tab: number
+  combo_quit_app: number
+  combo_hide_app: number
+  combo_minimize: number
+  combo_spotlight: number
+  combo_task_manager: number
+  combo_switch_app: number
+  combo_close_window: number
+  combo_show_desktop: number
+  combo_open_explorer: number
+  combo_run_dialog: number
+  combo_lock_screen: number
+  combo_task_view: number
+  combo_snipping_tool: number
+  combo_new_folder: number
+  combo_other: number
 }
+
+/**
+ * 时间段统计表（TimeSlotStats）
+ * 按小时统计每天活跃情况（方便热力图）
+ */
+export interface TimeSlotStats {
+  id: string                      // UUID
+  date: string                    // 日期 YYYY-MM-DD
+  hour: number                    // 0-23 小时
+  keystrokes: number              // 本小时敲击次数
+  active_minutes: number          // 本小时活跃分钟数
+}
+
+/**
+ * 高频按键统计表（TopKeyStats）
+ * 记录每日每个按键的使用次数
+ */
+export interface TopKeyStats {
+  id: string                      // UUID
+  date: string                    // 日期 YYYY-MM-DD
+  key_name: string                // 按键名称
+  key_count: number               // 按键次数
+  key_category: string            // 按键分类
+}
+
+/**
+ * 已解锁称号表（UnlockedTitle）
+ * 记录用户已解锁的称号
+ */
+export interface UnlockedTitle {
+  id: string                      // UUID
+  title_id: string                // 称号ID
+  unlocked_date: string           // 解锁日期 YYYY-MM-DD
+}
+
+// ============================================================
+// 数据库完整结构
+// ============================================================
+
+/**
+ * 数据库 Schema
+ * lowdb JSON 文件的完整结构
+ */
+export interface DatabaseSchema {
+  dailyStats: DailyStats[]        // 每日统计表
+  timeSlotStats: TimeSlotStats[]  // 时间段统计表
+  topKeyStats: TopKeyStats[]      // 高频按键统计表
+  unlockedTitles: UnlockedTitle[] // 已解锁称号表
+  settings: AppSettings           // 应用设置
+}
+
+// ============================================================
+// 应用设置类型
+// ============================================================
 
 /**
  * 应用设置
@@ -108,18 +213,6 @@ export interface AppSettings {
   showFloatingWindow: boolean     // 显示悬浮窗
   dataRetentionDays: number       // 数据保留天数（默认 90 天）
   theme: 'light' | 'dark'         // 主题模式
-}
-
-/**
- * 单次按键数据（已废弃，保留用于向后兼容）
- * @deprecated 使用 DailyStat 代替
- */
-export interface KeystrokeData {
-  id: number
-  timestamp: number
-  count: number
-  hour: number
-  date: string
 }
 
 // ============================================================
@@ -140,20 +233,6 @@ export interface Title {
 }
 
 // ============================================================
-// 日期数据类型
-// ============================================================
-
-/**
- * 每日数据（用于热力图等展示）
- */
-export interface DayData {
-  date: string
-  count: number
-  dayOfWeek: number
-  weekNumber: number
-}
-
-// ============================================================
 // API 响应类型
 // ============================================================
 
@@ -162,9 +241,10 @@ export interface DayData {
  */
 export interface TodayStatsResponse {
   count: number
-  activeHours: number
-  focusSessions: number
+  activeMinutes: number
+  peakHour: number
   hourlyDistribution: number[]
+  hourlyActiveMinutes: number[]
   categoryCount: KeyCategoryCount
   topKeys: TopKeyItem[]
   comboCounts: ComboCounts
@@ -190,17 +270,45 @@ export interface MonthStatsResponse {
   daysInMonth: number
 }
 
+/**
+ * 每日数据（用于热力图等展示）
+ */
+export interface DayData {
+  date: string
+  count: number
+  dayOfWeek: number
+  weekNumber: number
+}
+
 // ============================================================
-// 数据库类型
+// 兼容性类型（废弃，保留用于数据迁移）
 // ============================================================
 
 /**
- * 数据库完整结构
+ * 旧版每日统计数据（已废弃）
+ * @deprecated 使用 DailyStats 代替
  */
-export interface DatabaseSchema {
-  keystrokes: KeystrokeData[]     // 历史按键记录（已废弃，保留向后兼容）
-  dailyStats: DailyStat[]         // 每日统计数据（主要存储）
-  settings: AppSettings           // 应用设置
+export interface DailyStat {
+  date: string
+  totalCount: number
+  hourlyDistribution: number[]
+  activeHours: number
+  focusSessions: number
+  categoryCount: KeyCategoryCount
+  topKeys: TopKeyItem[]
+  comboCounts: ComboCounts
+}
+
+/**
+ * 旧版按键数据（已废弃）
+ * @deprecated 使用 DailyStats 代替
+ */
+export interface KeystrokeData {
+  id: number
+  timestamp: number
+  count: number
+  hour: number
+  date: string
 }
 
 // ============================================================
@@ -211,30 +319,18 @@ export interface DatabaseSchema {
  * Electron API 接口声明
  */
 export interface ElectronAPI {
-  // 平台信息
   platform: string
-
-  // 统计数据
   getTodayStats: () => Promise<TodayStatsResponse>
   getStatsByDate: (date: string) => Promise<TodayStatsResponse>
   getWeekStats: () => Promise<WeekStatsResponse>
   getMonthStats: () => Promise<MonthStatsResponse>
-
-  // 设置
   getSettings: () => Promise<AppSettings>
   saveSettings: (settings: Partial<AppSettings>) => Promise<boolean>
-
-  // 悬浮窗控制
   toggleFloatingWindow: (show: boolean) => Promise<boolean>
   setFloatingIgnoreMouse: (ignore: boolean) => void
-
-  // 窗口控制
   minimizeWindow: () => Promise<void>
   closeWindow: () => Promise<void>
-
-  // 监听事件
   onKeystrokeUpdate: (callback: (data: TodayStatsResponse) => void) => void
 }
 
-// Electron Window 接口扩展在 renderer/types/electron.d.ts 中定义
 export {}

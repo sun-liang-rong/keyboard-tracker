@@ -1,10 +1,13 @@
 <template>
   <div class="combo-stats">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="text-base font-medium text-gray-900 dark:text-white">组合键统计</h3>
+      <h3 class="text-base font-medium text-on-surface flex items-center gap-2">
+        <span class="w-1 h-5 bg-primary-container rounded-full"></span>
+        组合键统计
+      </h3>
       <button
         @click="showAll = !showAll"
-        class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        class="text-sm text-primary hover:text-primary-container transition-colors font-medium"
       >
         {{ showAll ? '收起' : '查看全部' }}
       </button>
@@ -15,10 +18,10 @@
       <div
         v-for="combo in displayedCombos"
         :key="combo.key"
-        class="flex flex-col items-center p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50"
+        class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors"
       >
-        <span class="text-xs font-mono text-gray-600 dark:text-gray-400 mb-1">{{ combo.label }}</span>
-        <span class="text-lg font-bold text-blue-600 dark:text-blue-400">{{ combo.count }}</span>
+        <span class="text-xs font-mono text-on-surface-variant mb-1">{{ combo.label }}</span>
+        <span class="text-lg font-bold text-primary">{{ combo.count }}</span>
       </div>
     </div>
 
@@ -27,10 +30,10 @@
       <div
         v-for="combo in allCombos"
         :key="combo.key"
-        class="flex flex-col items-center p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50"
+        class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors"
       >
-        <span class="text-xs font-mono text-gray-600 dark:text-gray-400 mb-1">{{ combo.label }}</span>
-        <span class="text-lg font-bold text-gray-500 dark:text-gray-400">{{ combo.count }}</span>
+        <span class="text-xs font-mono text-on-surface-variant mb-1">{{ combo.label }}</span>
+        <span class="text-lg font-bold text-on-surface-variant">{{ combo.count }}</span>
       </div>
     </div>
   </div>

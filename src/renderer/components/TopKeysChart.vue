@@ -1,7 +1,8 @@
 <template>
   <div class="top-keys-chart">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-base font-medium text-gray-900 dark:text-white">
+    <!-- 非紧凑模式显示标题和切换按钮 -->
+    <div v-if="!compact" class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-medium text-on-surface">
         高频按键 TOP{{ displayCount }}
       </h3>
       <div class="flex gap-1">
@@ -9,7 +10,7 @@
           v-for="n in [10, 20]"
           :key="n"
           @click="displayCount = n"
-          :class="displayCount === n ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'"
+          :class="displayCount === n ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'"
           class="px-2 py-1 rounded text-xs font-medium transition-colors"
         >
           TOP{{ n }}
@@ -17,62 +18,42 @@
       </div>
     </div>
 
-    <div class="space-y-2">
+    <div class="space-y-2" :class="compact ? 'space-y-1' : 'space-y-2'">
       <div
         v-for="(key, index) in displayedKeys"
         :key="key.name"
-        class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        class="flex items-center justify-between p-2 rounded-lg hover:bg-surface-container-low transition-colors"
+        :class="compact ? 'py-1.5' : 'p-2'"
       >
-        <!-- 排名 -->
-        <div
-          class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-          :class="getRankClass(index)"
-        >
-          {{ index + 1 }}
-        </div>
-
-        <!-- 按键名称 -->
-        <div class="w-16 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <!-- 排名 -->
           <span
-            class="inline-flex items-center justify-center px-2 py-1 rounded text-xs font-mono font-medium"
-            :class="getKeyClass(key.category)"
+            v-if="compact"
+            class="w-6 h-6 flex items-center justify-center bg-secondary/10 text-secondary text-[10px] font-black rounded"
           >
-            {{ formatKeyName(key.name) }}
+            {{ String(index + 1).padStart(2, '0') }}
           </span>
-        </div>
-
-        <!-- 分类标签 -->
-        <div class="w-16 flex-shrink-0">
-          <span
-            class="text-xs px-2 py-0.5 rounded-full"
-            :class="getCategoryBadgeClass(key.category)"
+          <div
+            v-else
+            class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+            :class="getRankClass(index)"
           >
-            {{ getCategoryLabel(key.category) }}
-          </span>
-        </div>
-
-        <!-- 进度条 -->
-        <div class="flex-1">
-          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div
-              class="h-full rounded-full transition-all duration-500 ease-out"
-              :class="getBarClass(key.category)"
-              :style="{ width: getPercentage(key.count) + '%' }"
-            ></div>
+            {{ index + 1 }}
           </div>
+
+          <!-- 按键名称 -->
+          <span class="font-bold text-on-surface text-sm">{{ formatKeyNameCompact(key.name) }}</span>
         </div>
 
         <!-- 次数 -->
-        <div class="w-16 text-right">
-          <span class="text-sm font-semibold text-gray-900 dark:text-white">
-            {{ key.count.toLocaleString() }}
-          </span>
-        </div>
+        <span class="text-xs font-medium text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">
+          {{ key.count.toLocaleString() }}
+        </span>
       </div>
     </div>
 
     <!-- 空数据提示 -->
-    <div v-if="displayedKeys.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+    <div v-if="displayedKeys.length === 0" class="text-center py-8 text-on-surface-variant">
       暂无按键数据
     </div>
   </div>
@@ -84,103 +65,51 @@ import type { TopKeyItem } from '../stores/stats'
 
 interface Props {
   topKeys: TopKeyItem[]
+  compact?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  compact: false
+})
+
 const displayCount = ref(10)
 
 const displayedKeys = computed(() => {
-  return props.topKeys.slice(0, displayCount.value)
+  const count = props.compact ? 8 : displayCount.value
+  return props.topKeys.slice(0, count)
 })
-
-const maxCount = computed(() => {
-  if (props.topKeys.length === 0) return 1
-  return props.topKeys[0].count
-})
-
-function getPercentage(count: number): number {
-  if (maxCount.value === 0) return 0
-  return (count / maxCount.value) * 100
-}
 
 function getRankClass(index: number): string {
-  if (index === 0) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-  if (index === 1) return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-  if (index === 2) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-  return 'bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-500'
+  if (index === 0) return 'bg-tertiary-fixed text-tertiary'
+  if (index === 1) return 'bg-surface-container-high text-on-surface-variant'
+  if (index === 2) return 'bg-secondary-fixed text-secondary'
+  return 'bg-surface-container text-on-surface-variant'
 }
 
-function formatKeyName(name: string): string {
+function formatKeyNameCompact(name: string): string {
   // 处理特殊按键名称
   const specialNames: Record<string, string> = {
-    'Space': '␣',
-    'Enter': '↵',
-    'Tab': '⇥',
-    'Backspace': '⌫',
-    'Delete': '⌦',
+    'Space': 'Space',
+    'Enter': 'Enter',
+    'Tab': 'Tab',
+    'Backspace': 'Backspace',
+    'Delete': 'Delete',
     'Escape': 'Esc',
-    'Up': '↑',
-    'Down': '↓',
-    'Left': '←',
-    'Right': '→',
-    'Home': '⇱',
-    'End': '⇲',
-    'PageUp': '⇞',
-    'PageDown': '⇟',
+    'ArrowUp': '↑',
+    'ArrowDown': '↓',
+    'ArrowLeft': '←',
+    'ArrowRight': '→',
+    'Home': 'Home',
+    'End': 'End',
+    'PageUp': 'PgUp',
+    'PageDown': 'PgDn',
     'Insert': 'Ins',
+    'Shift': 'Shift',
+    'Control': 'Ctrl',
+    'Alt': 'Alt',
+    'Meta': 'Win',
+    'CapsLock': 'Caps',
   }
-  return specialNames[name] || name.toUpperCase()
-}
-
-function getKeyClass(category: string): string {
-  const classes: Record<string, string> = {
-    letter: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    number: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-    function: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
-    control: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    symbol: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-    modifier: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-    other: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  }
-  return classes[category] || classes.other
-}
-
-function getCategoryLabel(category: string): string {
-  const labels: Record<string, string> = {
-    letter: '字母',
-    number: '数字',
-    function: '功能',
-    control: '控制',
-    symbol: '符号',
-    modifier: '修饰',
-    other: '其他',
-  }
-  return labels[category] || category
-}
-
-function getCategoryBadgeClass(category: string): string {
-  const classes: Record<string, string> = {
-    letter: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-    number: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
-    function: 'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400',
-    control: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
-    symbol: 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400',
-    modifier: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    other: 'bg-gray-50 text-gray-500 dark:bg-gray-800/50 dark:text-gray-500',
-  }
-  return classes[category] || classes.other
-}
-
-function getBarClass(category: string): string {
-  const classes: Record<string, string> = {
-    letter: 'bg-blue-500',
-    number: 'bg-emerald-500',
-    function: 'bg-violet-500',
-    control: 'bg-amber-500',
-    symbol: 'bg-pink-500',
-    modifier: 'bg-gray-500',
-    other: 'bg-gray-400',
-  }
-  return classes[category] || classes.other
+  return specialNames[name] || name
 }
 </script>

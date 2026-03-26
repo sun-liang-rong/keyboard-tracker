@@ -1,392 +1,429 @@
 <template>
-  <!-- 固定视口高度，禁止全局滚动 -->
-  <div class="h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900 transition-colors duration-300">
-    <!-- 固定标题栏 - 支持拖拽 -->
-    <header class="flex-shrink-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 shadow-sm" style="-webkit-app-region: drag">
-      <div class="px-4 sm:px-6 py-4 flex items-center justify-between">
-        <!-- Logo -->
-        <div class="flex items-center gap-2 sm:gap-3" :class="logoMarginClass">
-          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 overflow-hidden">
-            <img src="/logo.png" alt="KeyboardTracker" class="w-full h-full object-cover" />
-          </div>
-          <div>
-            <h1 class="text-base sm:text-lg font-bold text-gray-900 dark:text-white leading-tight">
-              KeyboardTracker
-            </h1>
-            <p class="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">键盘活跃度统计</p>
-          </div>
-        </div>
-
-        <!-- 窗口控制按钮 - 不可拖拽区域 -->
-        <div class="flex items-center gap-1 sm:gap-2" style="-webkit-app-region: no-drag">
-          <!-- 设置按钮 -->
-          <button
-            @click="$router.push('/settings')"
-            class="group flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all duration-200"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span class="text-sm font-medium hidden sm:inline">设置</span>
-          </button>
-
-          <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1 hidden sm:block"></div>
-
-          <!-- 最小化按钮 -->
-          <button
-            @click="minimizeWindow"
-            class="group p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200"
-            title="最小化"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
-            </svg>
-          </button>
-
-          <!-- 关闭按钮 -->
-          <button
-            @click="closeWindow"
-            class="group p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200"
-            title="关闭"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- 可滚动内容区域 -->
-    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
-
-    <!-- 今日概览 -->
-    <section class="mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-        📊 今日概览
-      </h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          title="总按键"
-          :value="formattedTodayCount"
-          icon="⌨️"
-        />
-        <StatCard
-          title="活跃时长"
-          :value="`${activeHours}小时`"
-          icon="⏰"
-        />
-        <StatCard
-          title="专注时段"
-          :value="`${focusSessions}次`"
-          icon="🎯"
-        />
-        <StatCard
-          title="今日排名"
-          value="第5名"
-          icon="🏆"
-        />
-      </div>
-    </section>
-
-    <!-- 称号展示与组合键统计 -->
-    <section class="mb-8">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 称号展示 -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm">
-          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-            🏆 称号系统
-          </h2>
-          <TitleDisplay :current-title="currentTitle" :unlocked-titles="unlockedTitles" />
-        </div>
-
-        <!-- 组合键统计 -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm">
-          <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-            ⌨️ 组合键统计
-          </h2>
-          <ComboStats :combo-counts="comboCounts" />
-        </div>
-      </div>
-    </section>
-
-    <!-- 按键分类统计与高频按键排行 -->
-    <section class="mb-8">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 按键分类统计 -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm">
-          <CategoryChart :category-count="categoryCount" />
-        </div>
-
-        <!-- 高频按键排行 -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm">
-          <TopKeysChart :top-keys="topKeys" />
-        </div>
-      </div>
-    </section>
-
-    <!-- 时段分布（可切换日期） -->
-    <section class="mb-8">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
-        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
-          📈 时段分布
+  <!-- 页面内容 -->
+  <div class="relative p-6 space-y-6">
+    <!-- Headline Section -->
+    <div class="flex justify-between items-end">
+      <div>
+        <h2 class="text-3xl font-extrabold tracking-tight text-on-surface">
+          今日概览
         </h2>
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-          <button
-            @click="changeDate(-1)"
-            class="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm"
+        <p class="mt-1 text-on-surface-variant">
+          数据最后更新于 {{ lastUpdateTime }}
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <button
+          class="px-4 py-2 text-sm font-semibold rounded-xl transition-all bg-surface-container-high text-on-primary-fixed-variant hover:brightness-95"
+        >
+          导出报告
+        </button>
+        <button
+          class="px-4 py-2 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
+          分享今日成就
+        </button>
+      </div>
+    </div>
+
+    <!-- Core Metrics Bento Grid -->
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <StatCard
+        title="总按键数"
+        :value="formattedTodayCount"
+        :change="'+12%'"
+        icon="keyboard"
+        color="primary"
+      />
+      <StatCard
+        title="活跃时长"
+        :value="activeHoursDisplay"
+        icon="schedule"
+        color="secondary"
+      />
+      <StatCard
+        title="专注时段"
+        :value="focusSessions + '次'"
+        icon="bolt"
+        color="tertiary"
+      />
+      <StatCard
+        title="今日排名"
+        :value="'第5名'"
+        icon="military_tech"
+        color="primary-container"
+      />
+    </div>
+
+    <!-- Main Visualization Section -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <!-- 24H Activity Chart -->
+      <div
+        class="p-6 rounded-xl shadow-sm lg:col-span-2 bg-surface-container-lowest"
+      >
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <h3
+              class="flex gap-2 items-center text-lg font-bold text-on-surface"
+            >
+              <span class="w-1 h-5 rounded-full bg-primary"></span>
+              24小时活跃分布
+            </h3>
+            <p class="text-sm text-on-surface-variant">
+              反映全天输入强度变化规律
+            </p>
+          </div>
+          <div class="flex gap-4 text-[10px] font-bold">
+            <div class="flex gap-1.5 items-center">
+              <span class="w-2.5 h-2.5 rounded-full bg-primary/20"></span>
+              <span class="text-on-surface-variant">常规</span>
+            </div>
+            <div class="flex gap-1.5 items-center">
+              <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+              <span class="text-on-surface-variant">高峰</span>
+            </div>
+          </div>
+        </div>
+        <!-- Hourly Chart -->
+        <div class="h-64">
+          <HourlyChart :hourly-data="hourlyDistribution" />
+        </div>
+      </div>
+
+      <!-- Top Keys -->
+      <div
+        class="flex flex-col p-6 rounded-xl shadow-sm bg-surface-container-lowest"
+      >
+        <div class="mb-4">
+          <h3 class="flex gap-2 items-center text-lg font-bold text-on-surface">
+            <span class="w-1 h-5 rounded-full bg-secondary"></span>
+            高频按键 TOP 8
+          </h3>
+        </div>
+        <TopKeysChart :top-keys="topKeys.slice(0, 8)" compact />
+      </div>
+    </div>
+
+    <!-- Shortcuts & Insights -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <!-- Shortcut Stats -->
+      <div
+        class="overflow-hidden relative p-6 rounded-xl shadow-sm bg-surface-container-lowest"
+      >
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="flex gap-2 items-center text-lg font-bold text-on-surface">
+            <span class="w-1 h-5 rounded-full bg-tertiary"></span>
+            常用快捷键统计
+          </h3>
+          <span
+            class="text-xs font-medium cursor-pointer text-on-surface-variant hover:text-primary"
+            >查看全部历史</span
           >
-            <span class="hidden sm:inline">◀ 前一天</span>
-            <span class="sm:hidden">◀</span>
-          </button>
-          <input
-            type="date"
-            v-model="selectedDate"
-            @change="onDateChange"
-            class="px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <ShortcutCard
+            shortcut="Ctrl+C"
+            :count="comboCounts?.COPY || 0"
+            :percent="getComboPercent(comboCounts?.COPY || 0)"
           />
-          <button
-            @click="changeDate(1)"
-            class="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm"
-          >
-            <span class="hidden sm:inline">后一天 ▶</span>
-            <span class="sm:hidden">▶</span>
-          </button>
-          <button
-            @click="goToToday"
-            class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm"
-          >
-            今天
-          </button>
+          <ShortcutCard
+            shortcut="Ctrl+V"
+            :count="comboCounts?.PASTE || 0"
+            :percent="getComboPercent(comboCounts?.PASTE || 0)"
+          />
+          <ShortcutCard
+            shortcut="Alt+Tab"
+            :count="comboCounts?.SWITCH_APP || 0"
+            :percent="getComboPercent(comboCounts?.SWITCH_APP || 0)"
+          />
+          <ShortcutCard
+            shortcut="Win+D"
+            :count="comboCounts?.SHOW_DESKTOP || 0"
+            :percent="getComboPercent(comboCounts?.SHOW_DESKTOP || 0)"
+          />
         </div>
       </div>
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm overflow-x-auto">
-        <div v-if="isLoading" class="h-48 sm:h-64 flex items-center justify-center text-gray-500">
-          加载中...
-        </div>
-        <div v-else-if="hasData">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 text-sm text-gray-600 dark:text-gray-400 gap-2">
-            <span>日期：{{ formattedDate }}</span>
-            <span>总按键：{{ selectedDateTotal.toLocaleString() }} | 活跃时长：{{ selectedDateActiveHours }}小时</span>
-          </div>
-          <div class="min-w-[600px]">
-            <HourlyChart :hourly-data="selectedDateHourlyData" />
-          </div>
-        </div>
-        <div v-else class="h-48 sm:h-64 flex items-center justify-center text-gray-500">
-          该日期暂无数据
-        </div>
-      </div>
-    </section>
 
-    <!-- 本周统计 -->
-    <section class="mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-        📈 本周统计
-      </h2>
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm overflow-x-auto">
-        <div class="min-w-[500px]">
-          <WeekChart :daily-counts="statsStore.weekDailyCounts" :labels="statsStore.weekLabels" />
+      <!-- Insights Card -->
+      <div
+        class="overflow-hidden relative p-6 text-white bg-gradient-to-br rounded-xl shadow-xl from-primary to-primary-container shadow-primary/20"
+      >
+        <!-- 标题行 -->
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold">深度洞察</h3>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+            </svg>
+            <span class="text-xs font-bold">{{ efficiencyScore }}分</span>
+          </div>
         </div>
-      </div>
-    </section>
 
-    <!-- 本月热力图 -->
-    <section class="mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-        🔥 本月热力图
-      </h2>
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm overflow-x-auto">
-        <HeatmapChart
-          :daily-data="statsStore.monthDailyData"
-          :total-count="statsStore.monthCount"
-        />
+        <!-- 主要洞察文本 -->
+        <p class="text-sm leading-relaxed text-white/80 mb-4">
+          相比昨日，你的输入效率
+          <span v-if="compareYesterday >= 0" class="font-bold text-white">提升了{{ compareYesterday }}%</span>
+          <span v-else class="font-bold text-white">下降了{{ Math.abs(compareYesterday) }}%</span>
+          。在 {{ peakHoursText }} 期间最为活跃。
+        </p>
+
+        <!-- 数据网格 -->
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="p-3 rounded-lg bg-white/10">
+            <div class="text-xs text-white/60 mb-1">平均速度</div>
+            <div class="text-lg font-bold">{{ avgKeysPerMinute }}</div>
+            <div class="text-xs text-white/60">次/分钟</div>
+          </div>
+          <div class="p-3 rounded-lg bg-white/10">
+            <div class="text-xs text-white/60 mb-1">最长连续</div>
+            <div class="text-lg font-bold">{{ longestStreak.hours }}h</div>
+            <div class="text-xs text-white/60">{{ longestStreak.startHour }}:00 起</div>
+          </div>
+          <div class="p-3 rounded-lg bg-white/10">
+            <div class="text-xs text-white/60 mb-1">最高频键</div>
+            <div class="text-lg font-bold">{{ topKey?.name || '-' }}</div>
+            <div class="text-xs text-white/60">{{ topKey?.count?.toLocaleString() || 0 }}次</div>
+          </div>
+        </div>
+
+        <!-- 本周对比 -->
+        <div class="flex gap-4 items-center p-3 rounded-lg bg-white/10 mb-4">
+          <div class="flex-1">
+            <div class="text-xs text-white/60 mb-1">本周累计</div>
+            <div class="text-xl font-bold">{{ weekTotalCount.toLocaleString() }}</div>
+          </div>
+          <div class="w-px h-8 bg-white/20"></div>
+          <div class="flex-1">
+            <div class="text-xs text-white/60 mb-1">日均</div>
+            <div class="text-xl font-bold">{{ weekAvgCount.toLocaleString() }}</div>
+          </div>
+          <div class="w-px h-8 bg-white/20"></div>
+          <div class="flex-1">
+            <div class="text-xs text-white/60 mb-1">专注时段</div>
+            <div class="text-xl font-bold">{{ focusSessions }}次</div>
+          </div>
+        </div>
+
+        <!-- 目标进度 -->
+        <div>
+          <div class="flex justify-between text-xs font-semibold mb-1.5">
+            <span>今日目标 ({{ dailyGoal.toLocaleString() }} 次)</span>
+            <span>{{ goalProgress }}%</span>
+          </div>
+          <div class="overflow-hidden h-2.5 rounded-full bg-white/20">
+            <div
+              class="h-full bg-white rounded-full transition-all duration-500"
+              :style="{ width: goalProgress + '%' }"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Decorative background element -->
+        <div
+          class="absolute -right-10 -bottom-10 w-48 h-48 rounded-full blur-3xl bg-white/10"
+        ></div>
       </div>
-    </section>
-    </main>
+    </div>
+
+    <!-- Category & Combo Section -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div class="p-6 rounded-xl shadow-sm bg-surface-container-lowest">
+        <CategoryChart :category-count="categoryCount" />
+      </div>
+      <div class="p-6 rounded-xl shadow-sm bg-surface-container-lowest">
+        <ComboStats :combo-counts="comboCounts" />
+      </div>
+    </div>
+
+    <!-- Footer spacing -->
+    <div class="h-4"></div>
+  </div>
+
+  <!-- Floating Tooltip -->
+  <div
+    class="flex fixed bottom-6 left-1/2 z-50 gap-2 items-center px-4 py-2 text-xs font-bold rounded-full shadow-2xl opacity-90 backdrop-blur-md -translate-x-1/2 pointer-events-none bg-on-surface text-surface"
+  >
+    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+      <path
+        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+      />
+    </svg>
+    KeyboardTracker 正在实时监控中
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useStatsStore } from '../stores/stats'
-import StatCard from '../components/StatCard.vue'
-import HourlyChart from '../components/HourlyChart.vue'
-import WeekChart from '../components/WeekChart.vue'
-import HeatmapChart from '../components/HeatmapChart.vue'
-import CategoryChart from '../components/CategoryChart.vue'
-import TopKeysChart from '../components/TopKeysChart.vue'
-import ComboStats from '../components/ComboStats.vue'
-import TitleDisplay from '../components/TitleDisplay.vue'
+import { ref, onMounted, onUnmounted, computed } from "vue";
+import { storeToRefs } from "pinia";
+import { useStatsStore } from "../stores/stats";
+import StatCard from "../components/StatCard.vue";
+import HourlyChart from "../components/HourlyChart.vue";
+import CategoryChart from "../components/CategoryChart.vue";
+import TopKeysChart from "../components/TopKeysChart.vue";
+import ComboStats from "../components/ComboStats.vue";
+import ShortcutCard from "../components/ShortcutCard.vue";
 
-const statsStore = useStatsStore()
-const { activeHours, focusSessions, formattedTodayCount, categoryCount, topKeys, comboCounts, currentTitle, unlockedTitles } = storeToRefs(statsStore)
-let dateCheckInterval: ReturnType<typeof setInterval> | null = null
+const statsStore = useStatsStore();
+const {
+  todayCount,
+  activeMinutes,
+  peakHour,
+  activeHours,
+  focusSessions,
+  formattedTodayCount,
+  categoryCount,
+  topKeys,
+  comboCounts,
+  weekDailyCounts,
+  hourlyDistribution,
+} = storeToRefs(statsStore);
 
-// 检测平台
-const platform = window.electronAPI?.platform || 'win32'
-const isMac = platform === 'darwin'
+const lastUpdateTime = ref("--:--:--");
+let timeInterval: ReturnType<typeof setInterval> | null = null;
 
-// Logo 左边距：Windows 靠左，macOS 保持原样
-const logoMarginClass = computed(() => isMac ? 'ml-16 sm:ml-20' : 'ml-2 sm:ml-4')
+// 每日目标（可配置）
+const dailyGoal = 10000;
 
-/**
- * 获取本地时区的日期字符串 YYYY-MM-DD
- * 避免使用 toISOString() 返回 UTC 日期
- */
-function getLocalDateString(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+// 活跃时长显示
+const activeHoursDisplay = computed(() => {
+  const hours = activeHours.value || 0;
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  return `${wholeHours}h ${minutes}m`;
+});
+
+// 计算快捷键最大值用于百分比
+const maxComboCount = computed(() => {
+  if (!comboCounts.value) return 1
+  const counts = [
+    comboCounts.value.COPY || 0,
+    comboCounts.value.PASTE || 0,
+    comboCounts.value.SWITCH_APP || 0,
+    comboCounts.value.SHOW_DESKTOP || 0,
+  ]
+  return Math.max(...counts, 1)
+});
+
+// 计算快捷键百分比
+function getComboPercent(count: number): number {
+  return Math.round((count / maxComboCount.value) * 100)
 }
 
-const selectedDate = ref(getLocalDateString())
-const isLoading = ref(false)
+// 昨日按键数
+const yesterdayCount = computed(() => {
+  if (!weekDailyCounts.value || weekDailyCounts.value.length < 7) return 0
+  return weekDailyCounts.value[6] || 0 // 倒数第二个是昨天
+});
 
-// 格式化日期显示
-const formattedDate = computed(() => {
-  const today = getLocalDateString()
-  const yesterdayDate = new Date()
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-  const year = yesterdayDate.getFullYear()
-  const month = String(yesterdayDate.getMonth() + 1).padStart(2, '0')
-  const day = String(yesterdayDate.getDate()).padStart(2, '0')
-  const yesterday = `${year}-${month}-${day}`
+// 相比昨日变化百分比
+const compareYesterday = computed(() => {
+  if (yesterdayCount.value === 0) return 0
+  const diff = todayCount.value - yesterdayCount.value
+  return Math.round((diff / yesterdayCount.value) * 100)
+});
 
-  if (selectedDate.value === today) return '今天'
-  if (selectedDate.value === yesterday) return '昨天'
-  const date = new Date(selectedDate.value)
-  return `${date.getMonth() + 1}月${date.getDate()}日`
-})
+// 峰值时段文本
+const peakHoursText = computed(() => {
+  const hour = peakHour.value
+  if (hour === undefined || hour === null) return '暂无数据'
+  return `${hour}:00 - ${hour + 1}:00`
+});
 
-// 当前选中日期的统计数据
-const selectedDateTotal = computed(() => {
-  const today = getLocalDateString()
-  if (selectedDate.value === today) {
-    return statsStore.todayCount || 0
-  }
-  if (selectedDate.value === statsStore.selectedDate) {
-    return statsStore.selectedDateStats?.totalCount || 0
-  }
-  return 0
-})
+// 目标完成度
+const goalProgress = computed(() => {
+  const progress = (todayCount.value / dailyGoal) * 100
+  return Math.min(Math.round(progress), 100)
+});
 
-const selectedDateActiveHours = computed(() => {
-  const today = getLocalDateString()
-  if (selectedDate.value === today) {
-    // 计算今日活跃小时数
-    return statsStore.hourlyDistribution.filter(h => h > 0).length
-  }
-  if (selectedDate.value === statsStore.selectedDate) {
-    return statsStore.selectedDateStats?.activeHours || 0
-  }
-  return 0
-})
+// 平均每分钟按键数
+const avgKeysPerMinute = computed(() => {
+  if (activeMinutes.value === 0) return 0
+  return Math.round(todayCount.value / activeMinutes.value)
+});
 
-const selectedDateHourlyData = computed(() => {
-  // 如果是今天，使用 store 的实时数据
-  const today = getLocalDateString()
-  if (selectedDate.value === today) {
-    return statsStore.hourlyDistribution
-  }
-  // 其他日期使用选中日期的数据
-  if (selectedDate.value === statsStore.selectedDate) {
-    return statsStore.selectedDateStats?.hourlyDistribution || new Array(24).fill(0)
-  }
-  return new Array(24).fill(0)
-})
+// 本周平均每日按键数
+const weekAvgCount = computed(() => {
+  if (!weekDailyCounts.value || weekDailyCounts.value.length === 0) return 0
+  const validDays = weekDailyCounts.value.filter(c => c > 0)
+  if (validDays.length === 0) return 0
+  return Math.round(validDays.reduce((a, b) => a + b, 0) / validDays.length)
+});
 
-const hasData = computed(() => {
-  const total = selectedDateTotal.value
-  return total > 0
-})
+// 本周总按键数
+const weekTotalCount = computed(() => {
+  if (!weekDailyCounts.value) return 0
+  return weekDailyCounts.value.reduce((a, b) => a + b, 0)
+});
 
-// 切换日期
-async function changeDate(days: number) {
-  const currentDate = new Date(selectedDate.value)
-  currentDate.setDate(currentDate.getDate() + days)
-  const year = currentDate.getFullYear()
-  const month = String(currentDate.getMonth() + 1).padStart(2, '0')
-  const day = String(currentDate.getDate()).padStart(2, '0')
-  selectedDate.value = `${year}-${month}-${day}`
-  await loadDateStats()
-}
+// 最高频按键
+const topKey = computed(() => {
+  if (!topKeys.value || topKeys.value.length === 0) return null
+  return topKeys.value[0]
+});
 
-// 日期选择变化
-async function onDateChange() {
-  await loadDateStats()
-}
+// 效率评分 (0-100)
+const efficiencyScore = computed(() => {
+  let score = 0
+  // 目标完成度贡献 40 分
+  score += Math.min(goalProgress.value * 0.4, 40)
+  // 活跃时长贡献 30 分 (假设 8 小时为满分)
+  const hoursScore = Math.min((activeHours.value / 8) * 30, 30)
+  score += hoursScore
+  // 专注时段贡献 30 分 (假设 5 个时段为满分)
+  const focusScore = Math.min((focusSessions.value / 5) * 30, 30)
+  score += focusScore
+  return Math.round(score)
+});
 
-// 回到今天
-async function goToToday() {
-  selectedDate.value = getLocalDateString()
-  await loadDateStats()
-}
+// 连续最长活跃时段
+const longestStreak = computed(() => {
+  if (!hourlyDistribution.value) return { hours: 0, startHour: 0 }
+  let maxStreak = 0
+  let currentStreak = 0
+  let streakStart = 0
+  let maxStart = 0
 
-// 加载指定日期的统计
-async function loadDateStats() {
-  isLoading.value = true
-  await statsStore.fetchStatsByDate(selectedDate.value)
-  isLoading.value = false
-}
-
-function minimizeWindow() {
-  try {
-    if (window.electronAPI) {
-      window.electronAPI.minimizeWindow()
+  hourlyDistribution.value.forEach((count, index) => {
+    if (count > 0) {
+      if (currentStreak === 0) {
+        streakStart = index
+      }
+      currentStreak++
+      if (currentStreak > maxStreak) {
+        maxStreak = currentStreak
+        maxStart = streakStart
+      }
     } else {
-      console.error('[Renderer] electronAPI not available for minimizeWindow')
+      currentStreak = 0
     }
-  } catch (error) {
-    console.error('[Renderer] Error calling minimizeWindow:', error)
-  }
-}
+  })
 
-function closeWindow() {
-  try {
-    if (window.electronAPI) {
-      window.electronAPI.closeWindow()
-    } else {
-      console.error('[Renderer] electronAPI not available for closeWindow')
-    }
-  } catch (error) {
-    console.error('[Renderer] Error calling closeWindow:', error)
-  }
+  return { hours: maxStreak, startHour: maxStart }
+});
+
+// 更新最后更新时间
+function updateLastUpdateTime() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  lastUpdateTime.value = `${hours}:${minutes}:${seconds}`;
 }
 
 onMounted(() => {
-  // 确保日期是今天的本地日期
-  selectedDate.value = getLocalDateString()
-  statsStore.fetchTodayStats()
-  statsStore.fetchWeekStats()
-  statsStore.fetchMonthStats()
-  statsStore.startListening()
-  // 初始加载今天的数据
-  loadDateStats()
+  statsStore.fetchTodayStats();
+  statsStore.fetchWeekStats();
+  statsStore.fetchMonthStats();
+  statsStore.startListening();
+  updateLastUpdateTime();
 
-  // 定时检查日期变化（每分钟检查一次）
-  dateCheckInterval = setInterval(() => {
-    const currentDate = getLocalDateString()
-    if (currentDate !== selectedDate.value) {
-      console.log('[Dashboard] Date changed from', selectedDate.value, 'to', currentDate)
-      selectedDate.value = currentDate
-      // 日期变化时重新加载数据
-      statsStore.fetchTodayStats()
-      statsStore.fetchWeekStats()
-      statsStore.fetchMonthStats()
-      loadDateStats()
-    }
-  }, 60000)
-})
+  // 每秒更新时间
+  timeInterval = setInterval(updateLastUpdateTime, 1000);
+});
 
 onUnmounted(() => {
-  if (dateCheckInterval) {
-    clearInterval(dateCheckInterval)
-    dateCheckInterval = null
+  if (timeInterval) {
+    clearInterval(timeInterval);
+    timeInterval = null;
   }
-})
+});
 </script>

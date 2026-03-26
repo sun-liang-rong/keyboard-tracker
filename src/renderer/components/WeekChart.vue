@@ -40,27 +40,35 @@ function updateChart() {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
+      backgroundColor: isDark ? '#2d3133' : '#ffffff',
+      borderColor: isDark ? '#434655' : '#e0e3e5',
+      textStyle: {
+        color: isDark ? '#f7f9fb' : '#191c1e',
+        fontSize: 12,
+      },
       formatter: (params: any) => {
         const label = params[0].name
         const value = params[0].value
-        return `${label}<br/>按键次数: ${value.toLocaleString()}`
+        return `<div style="font-weight:600">${label}</div>
+                <div style="color:#004ac6;font-weight:bold">${value.toLocaleString()} 按键</div>`
       },
     },
     grid: {
-      left: '3%',
-      right: '4%',
+      left: '2%',
+      right: '3%',
       bottom: '3%',
-      top: '15%',
+      top: '10%',
       containLabel: true,
     },
     xAxis: {
       type: 'category',
       data: labels,
       axisLine: {
-        lineStyle: { color: isDark ? '#6b7280' : '#9ca3af' },
+        lineStyle: { color: isDark ? '#434655' : '#e0e3e5' },
       },
       axisLabel: {
-        color: isDark ? '#d1d5db' : '#4b5563',
+        color: isDark ? '#737686' : '#737686',
+        fontSize: 11,
       },
     },
     yAxis: {
@@ -69,12 +77,12 @@ function updateChart() {
       axisTick: { show: false },
       splitLine: {
         lineStyle: {
-          color: isDark ? '#374151' : '#e5e7eb',
+          color: isDark ? '#434655' : '#e0e3e5',
           type: 'dashed',
         },
       },
       axisLabel: {
-        color: isDark ? '#d1d5db' : '#4b5563',
+        color: isDark ? '#737686' : '#737686',
       },
     },
     series: [
@@ -88,19 +96,19 @@ function updateChart() {
         lineStyle: {
           width: 3,
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#3b82f6' },
-            { offset: 1, color: '#8b5cf6' },
+            { offset: 0, color: '#004ac6' },
+            { offset: 1, color: '#6b38d4' },
           ]),
         },
         itemStyle: {
-          color: '#3b82f6',
+          color: '#004ac6',
           borderWidth: 2,
-          borderColor: isDark ? '#1f2937' : '#ffffff',
+          borderColor: isDark ? '#2d3133' : '#ffffff',
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
-            { offset: 1, color: 'rgba(59, 130, 246, 0.05)' },
+            { offset: 0, color: 'rgba(0, 74, 198, 0.3)' },
+            { offset: 1, color: 'rgba(0, 74, 198, 0.05)' },
           ]),
         },
       },
@@ -116,7 +124,6 @@ watch(() => props.labels, updateChart)
 
 // 监听主题变化
 watch(() => settingsStore.settings.theme, () => {
-  // 只更新图表主题配置，不销毁重建
   if (chart) {
     updateChart()
   }

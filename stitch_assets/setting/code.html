@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-error-container": "#93000a",
+              "on-secondary": "#ffffff",
+              "on-background": "#191c1e",
+              "surface-container-low": "#f2f4f6",
+              "surface-dim": "#d8dadc",
+              "surface-tint": "#0053db",
+              "on-tertiary-fixed": "#360f00",
+              "on-secondary-container": "#fffbff",
+              "surface-bright": "#f7f9fb",
+              "inverse-on-surface": "#eff1f3",
+              "secondary-container": "#8455ef",
+              "surface-container-highest": "#e0e3e5",
+              "on-secondary-fixed": "#23005c",
+              "surface-container-high": "#e6e8ea",
+              "primary": "#004ac6",
+              "on-primary": "#ffffff",
+              "error-container": "#ffdad6",
+              "primary-fixed": "#dbe1ff",
+              "error": "#ba1a1a",
+              "outline-variant": "#c3c6d7",
+              "on-tertiary-container": "#ffede6",
+              "on-secondary-fixed-variant": "#5516be",
+              "on-tertiary-fixed-variant": "#7d2d00",
+              "on-surface": "#191c1e",
+              "tertiary-fixed": "#ffdbcd",
+              "surface-variant": "#e0e3e5",
+              "on-tertiary": "#ffffff",
+              "background": "#f7f9fb",
+              "tertiary-fixed-dim": "#ffb596",
+              "tertiary": "#943700",
+              "on-surface-variant": "#434655",
+              "inverse-surface": "#2d3133",
+              "outline": "#737686",
+              "secondary": "#6b38d4",
+              "on-primary-fixed": "#00174b",
+              "secondary-fixed-dim": "#d0bcff",
+              "inverse-primary": "#b4c5ff",
+              "primary-container": "#2563eb",
+              "on-error": "#ffffff",
+              "on-primary-container": "#eeefff",
+              "surface-container": "#eceef0",
+              "surface-container-lowest": "#ffffff",
+              "surface": "#f7f9fb",
+              "on-primary-fixed-variant": "#003ea8",
+              "tertiary-container": "#bc4800",
+              "secondary-fixed": "#e9ddff",
+              "primary-fixed-dim": "#b4c5ff"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary/20">
+<div class="flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-full py-6 px-4 gap-8 bg-[#f2f4f6] dark:bg-slate-800 h-screen w-64 border-r-0 z-40">
+<div class="flex items-center gap-3 px-2">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" data-icon="keyboard">keyboard</span>
+</div>
+<div>
+<h1 class="text-lg font-black text-blue-600 dark:text-blue-400 leading-none">KeyboardTracker</h1>
+<p class="text-[10px] font-medium tracking-widest text-on-surface-variant uppercase mt-1 opacity-70">数据分析专家</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 font-['Inter'] text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-blue-500 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="today">today</span>
+<span>今日概览</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 font-['Inter'] text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-blue-500 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="trending_up">trending_up</span>
+<span>周趋势</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 font-['Inter'] text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-blue-500 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="assessment">assessment</span>
+<span>月度报告</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 font-['Inter'] text-sm font-bold tracking-wide text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 rounded-lg shadow-sm translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined text-lg" data-icon="settings">settings</span>
+<span>设置</span>
+</a>
+</nav>
+<div class="mt-auto px-2 flex items-center gap-3">
+<img alt="用户头像" class="w-10 h-10 rounded-full border-2 border-white shadow-sm" data-alt="professional clean profile picture of a tech expert with a neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVHpYTmC3k-R7jcJ6WwY8OrSaHPqoGZrDJIZiYq2eULwn3LHbydqRUVDn2yLiN2JTY5KW7hVcOVWTRWovkicfNnVS5SVaNbqRMPF-2lbMrkIMzbpWuefOdzN-oujolSZsdXPdZPcuWFjw1VvSNMNPayWLWNy4-MnqmiYNJsf__GBgtV-_EMZ5RzYv5RfMEBfImzDddGwTNUDiKcBFYJgA-rOW6KQorTP0O8oK0qV3mCnfzHSQ3QVeo-aWE5nKvTTztJMrGHH9Fk1w"/>
+<div class="overflow-hidden">
+<p class="text-sm font-bold truncate">Pro User</p>
+<p class="text-[10px] text-on-surface-variant truncate">Premium Account</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col overflow-hidden bg-surface relative">
+<!-- TopAppBar (Window Controls + Breadcrumb) -->
+<header class="flex justify-between items-center px-4 w-full h-12 sticky top-0 z-50 bg-[#f7f9fb] dark:bg-slate-900">
+<div class="flex items-center gap-4">
+<span class="text-sm font-['Inter'] font-semibold tracking-tight text-on-surface-variant">系统设置 / 全局偏好</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors active:opacity-70 text-slate-500">
+<span class="material-symbols-outlined text-[18px]" data-icon="remove">remove</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors active:opacity-70 text-slate-500">
+<span class="material-symbols-outlined text-[18px]" data-icon="check_box_outline_blank">check_box_outline_blank</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 transition-colors active:opacity-70 text-slate-500">
+<span class="material-symbols-outlined text-[18px]" data-icon="close">close</span>
+</button>
+</div>
+</header>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto px-8 py-10 max-w-5xl mx-auto w-full">
+<div class="mb-12">
+<h2 class="text-4xl font-extrabold tracking-tight text-on-surface mb-2">设置</h2>
+<p class="text-on-surface-variant text-lg">个性化您的输入追踪体验与隐私安全设置。</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-6 gap-6">
+<!-- Section: 常规设置 -->
+<section class="md:col-span-4 bg-surface-container-lowest rounded-xl p-8 shadow-sm">
+<div class="flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-primary text-2xl" data-icon="tune">tune</span>
+<h3 class="text-xl font-bold">常规设置</h3>
+</div>
+<div class="space-y-6">
+<!-- Switch Item -->
+<div class="flex items-center justify-between group">
+<div>
+<p class="font-semibold text-on-surface">随系统启动</p>
+<p class="text-sm text-on-surface-variant">电脑开机时自动运行 KeyboardTracker</p>
+</div>
+<div class="w-12 h-6 bg-primary-container rounded-full relative p-1 cursor-pointer">
+<div class="absolute right-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
+</div>
+</div>
+<!-- Switch Item (New) -->
+<div class="flex items-center justify-between group">
+<div>
+<div class="flex items-center gap-2">
+<p class="font-semibold text-on-surface">开启悬浮窗口</p>
+<span class="px-1.5 py-0.5 rounded bg-secondary-container text-[10px] text-white font-bold uppercase tracking-wider">NEW</span>
+</div>
+<p class="text-sm text-on-surface-variant">在桌面显示实时键入速率 (WPM) 的透明窗口</p>
+</div>
+<div class="w-12 h-6 bg-surface-container-highest rounded-full relative p-1 cursor-pointer">
+<div class="absolute left-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
+</div>
+</div>
+<div class="h-px bg-surface-container-low"></div>
+<!-- Select Item -->
+<div class="flex items-center justify-between">
+<div>
+<p class="font-semibold text-on-surface">语言选择</p>
+<p class="text-sm text-on-surface-variant">界面显示的文本语言</p>
+</div>
+<select class="bg-surface-container-low border-none rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/20 min-w-[140px]">
+<option selected="">简体中文</option>
+<option>English (US)</option>
+<option>日本語</option>
+</select>
+</div>
+<!-- Theme Toggle -->
+<div class="flex items-center justify-between">
+<div>
+<p class="font-semibold text-on-surface">主题模式切换</p>
+<p class="text-sm text-on-surface-variant">选择适合您的视觉外观</p>
+</div>
+<div class="flex p-1 bg-surface-container-low rounded-xl">
+<button class="px-4 py-1.5 text-xs font-bold rounded-lg bg-white shadow-sm text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="light_mode">light_mode</span>
+                                        浅色
+                                    </button>
+<button class="px-4 py-1.5 text-xs font-bold rounded-lg text-on-surface-variant hover:text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="dark_mode">dark_mode</span>
+                                        深色
+                                    </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Section: 关于软件 (Compact Card) -->
+<section class="md:col-span-2 bg-gradient-to-br from-primary to-primary-container rounded-xl p-8 text-white shadow-lg shadow-primary/10 flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-2 mb-4 opacity-80">
+<span class="material-symbols-outlined" data-icon="info">info</span>
+<span class="text-xs font-bold tracking-widest uppercase">Version Info</span>
+</div>
+<h3 class="text-2xl font-black mb-1">2.4.0-pro</h3>
+<p class="text-blue-100 text-sm opacity-80">当前已是最新版本</p>
+</div>
+<div class="space-y-4">
+<button class="w-full py-3 bg-white text-primary font-bold rounded-xl shadow-lg hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[20px]" data-icon="update">update</span>
+                                检查更新
+                            </button>
+<p class="text-[10px] text-center text-blue-100/60 leading-relaxed">
+                                本软件基于 MIT 开源许可发布。<br/>版权所有 © 2024 KeyboardTracker 团队。
+                            </p>
+</div>
+</section>
+<!-- Section: 隐私与安全 -->
+<section class="md:col-span-6 bg-surface-container-lowest rounded-xl p-8 shadow-sm">
+<div class="flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-secondary text-2xl" data-icon="security">security</span>
+<h3 class="text-xl font-bold">隐私与安全</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+<div class="space-y-6">
+<div class="flex items-start justify-between">
+<div class="max-w-[80%]">
+<p class="font-semibold text-on-surface">本地数据加密</p>
+<p class="text-sm text-on-surface-variant">所有存储在本地的击键分析日志将通过 AES-256 标准加密，防止被第三方软件读取。</p>
+</div>
+<div class="w-12 h-6 bg-primary-container rounded-full relative p-1 cursor-pointer">
+<div class="absolute right-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
+</div>
+</div>
+<div class="flex items-start justify-between">
+<div class="max-w-[80%]">
+<p class="font-semibold text-on-surface">隐私遮蔽模式</p>
+<p class="text-sm text-on-surface-variant">当检测到在密码输入框或特定安全网页中输入时，自动停止任何追踪记录。</p>
+</div>
+<div class="w-12 h-6 bg-primary-container rounded-full relative p-1 cursor-pointer">
+<div class="absolute right-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
+</div>
+</div>
+</div>
+<div class="bg-error-container/30 rounded-xl p-6 border border-error/10">
+<h4 class="text-error font-bold mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]" data-icon="warning">warning</span>
+                                    危险区域
+                                </h4>
+<p class="text-sm text-on-error-container mb-6 leading-relaxed">
+                                    重置数据将永久删除您所有的历史击键统计、热力图数据及自定义配置。此操作无法撤销，请谨慎操作。
+                                </p>
+<button class="px-6 py-2.5 bg-error text-white text-sm font-bold rounded-lg hover:bg-red-700 transition-colors shadow-sm">
+                                    重置所有数据
+                                </button>
+</div>
+</div>
+</section>
+<!-- Feedback / Help (Extra) -->
+<section class="md:col-span-3 bg-surface-container-low rounded-xl p-6 flex items-center justify-between group hover:bg-surface-container transition-colors cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">获取帮助</p>
+<p class="text-xs text-on-surface-variant">查看在线文档或常见问题</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</section>
+<section class="md:col-span-3 bg-surface-container-low rounded-xl p-6 flex items-center justify-between group hover:bg-surface-container transition-colors cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" data-icon="rate_review">rate_review</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">提交反馈</p>
+<p class="text-xs text-on-surface-variant">帮助我们改进 KeyboardTracker</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</section>
+</div>
+</div>
+<!-- Toast / Status (Floating bottom right) -->
+<div class="fixed bottom-6 right-6 glass-card px-6 py-3 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-3 z-50">
+<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+<span class="text-xs font-bold text-on-surface-variant tracking-wider uppercase">Engine Status: Optimal</span>
+</div>
+</main>
+</div>
+</body></html>
