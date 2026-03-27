@@ -25,7 +25,7 @@ import { readFile, writeFile, access } from 'fs/promises'
 // ============================================================
 
 // 静默模式：不输出到 stdout，避免 Windows EPIPE 错误
-function safeLog(_args: unknown): void {
+function safeLog(..._args: unknown[]): void {
   // 静默
 }
 
