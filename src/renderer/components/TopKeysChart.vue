@@ -46,15 +46,19 @@
         </div>
 
         <!-- 次数 -->
-        <span class="text-xs font-medium text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">
+        <span class="text-xs font-medium text-on-surface/70 bg-surface-container-high px-2 py-0.5 rounded-full">
           {{ key.count.toLocaleString() }}
         </span>
       </div>
     </div>
 
     <!-- 空数据提示 -->
-    <div v-if="displayedKeys.length === 0" class="text-center py-8 text-on-surface-variant">
-      暂无按键数据
+    <div v-if="displayedKeys.length === 0" class="flex flex-col items-center justify-center py-10 text-center">
+      <svg class="w-12 h-12 text-on-surface-variant mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p class="text-sm font-medium text-on-surface-variant">暂无按键记录</p>
+      <p class="text-xs text-on-surface-variant/60 mt-1">开始按键后会显示统计数据</p>
     </div>
   </div>
 </template>

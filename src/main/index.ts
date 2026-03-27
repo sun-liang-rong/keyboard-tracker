@@ -70,6 +70,7 @@ import { existsSync } from 'fs'
 import {
   startKeyboardTracker,
   getTodayCount,
+  getActiveMinutes,
   initTodayCount,
   flushData,
   setFloatingWindowUpdater,
@@ -220,6 +221,8 @@ ipcMain.handle('get-today-stats', async () => {
 
     // 优先使用内存中的计数（实时更新）
     const count = getTodayCount() || todayStats.total_keystrokes
+    // 优先使用内存中的活跃分钟数（实时更新）
+    const activeMins = getActiveMinutes() || todayStats.active_minutes
 
     // 获取小时分布
     const hourlyDist = dbGetHourlyDistribution(today)
@@ -254,11 +257,11 @@ ipcMain.handle('get-today-stats', async () => {
       color: title.color,
     }))
 
-    safeLog('[Main] get-today-stats called, count:', count)
+    safeLog('[Main] get-today-stats called, count:', count, 'active minutes:', activeMins)
 
     return {
       count,
-      activeMinutes: todayStats.active_minutes,
+      activeMinutes: activeMins,
       peakHour: todayStats.peak_hour,
       hourlyDistribution: hourlyDist,
       hourlyActiveMinutes: hourlyActiveMins,
@@ -272,7 +275,7 @@ ipcMain.handle('get-today-stats', async () => {
     safeError('[Main] Failed to get today stats:', error)
     return {
       count: getTodayCount(),
-      activeMinutes: 0,
+      activeMinutes: getActiveMinutes(),
       peakHour: 0,
       hourlyDistribution: new Array(24).fill(0),
       hourlyActiveMinutes: new Array(24).fill(0),
@@ -472,6 +475,17 @@ ipcMain.handle('save-settings', async (_, newSettings) => {
     const db = getDatabase()
     db.data.settings = { ...db.data.settings, ...newSettings }
     await saveData()
+
+    // 处理开机自启动
+    if (newSettings.autoStart !== undefined) {
+      app.setLoginItemSettings({
+        openAtLogin: newSettings.autoStart,
+        openAsHidden: true, // macOS: 启动时隐藏窗口
+        path: app.getPath('exe'), // Windows: 指定可执行文件路径
+      })
+      safeLog('[Main] Auto-start set to:', newSettings.autoStart)
+    }
+
     return true
   } catch (error) {
     safeError('[Main] Failed to save settings:', error)
@@ -621,6 +635,14 @@ function createMainWindow(): void {
   if (process.platform !== 'darwin') {
     mainWindow.setMenu(null)
   }
+
+  // 禁用 Windows 窗口拖拽预览（显示 px * px 的预览框）
+  mainWindow.on('will-resize', (e) => {
+    e.preventDefault()
+  })
+  mainWindow.on('will-move', (e) => {
+    e.preventDefault()
+  })
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
@@ -821,6 +843,17 @@ app.whenReady().then(async () => {
       const dbPath = join(app.getPath('userData'), 'keyboard-tracker-db.json')
       safeLog('[Main] Database file path:', dbPath)
       safeLog('[Main] Daily stats count:', db.data.dailyStats.length)
+
+      // 同步开机自启动设置（应用启动时根据数据库设置系统登录项）
+      const settings = db.data.settings
+      if (settings.autoStart) {
+        app.setLoginItemSettings({
+          openAtLogin: true,
+          openAsHidden: true,
+          path: app.getPath('exe'),
+        })
+        safeLog('[Main] Auto-start enabled from settings')
+      }
     } catch (error) {
       safeError('[Main] Failed to initialize database:', error)
     }

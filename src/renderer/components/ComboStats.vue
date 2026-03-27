@@ -26,15 +26,23 @@
     </div>
 
     <!-- 展开的全部组合键 -->
-    <div v-if="showAll" class="grid grid-cols-4 gap-2">
+    <div v-if="showAll && allCombos.length > 0" class="grid grid-cols-4 gap-2">
       <div
         v-for="combo in allCombos"
         :key="combo.key"
         class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors"
       >
-        <span class="text-xs font-mono text-on-surface-variant mb-1">{{ combo.label }}</span>
-        <span class="text-lg font-bold text-on-surface-variant">{{ combo.count }}</span>
+        <span class="text-xs font-mono text-on-surface/70 mb-1">{{ combo.label }}</span>
+        <span class="text-lg font-bold text-on-surface/70">{{ combo.count }}</span>
       </div>
+    </div>
+
+    <!-- 空状态 -->
+    <div v-if="displayedCombos.every(c => c.count === 0) && allCombos.length === 0" class="flex flex-col items-center justify-center py-8 text-center">
+      <svg class="w-10 h-10 text-on-surface-variant mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      <p class="text-xs text-on-surface-variant">暂无组合键数据</p>
     </div>
   </div>
 </template>

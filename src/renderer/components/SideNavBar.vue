@@ -24,19 +24,6 @@
         @click="navigate(item.path)"
       />
     </nav>
-
-    <!-- User Profile -->
-    <div class="mt-auto p-4 bg-surface-container rounded-xl flex items-center gap-3">
-      <div class="w-8 h-8 rounded-full bg-surface-dim overflow-hidden flex items-center justify-center">
-        <svg class="w-5 h-5 text-on-surface-variant" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-        </svg>
-      </div>
-      <div class="flex-1 overflow-hidden">
-        <p class="text-xs font-bold truncate text-on-surface">分析员 01</p>
-        <p class="text-[10px] text-on-surface-variant">专业版已激活</p>
-      </div>
-    </div>
   </aside>
 </template>
 

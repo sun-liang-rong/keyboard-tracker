@@ -4,18 +4,19 @@
       <span
         v-for="(key, index) in shortcutKeys"
         :key="index"
-        class="bg-surface-container-lowest px-2 py-1 rounded shadow-sm text-[10px] font-black text-on-surface border border-surface-container-high"
+        class="bg-surface-container-lowest px-2 py-1 rounded shadow-sm text-xs font-bold text-on-surface border border-surface-container-high"
       >
         {{ key }}
       </span>
     </div>
     <div class="flex items-baseline justify-between mt-2">
       <span class="text-2xl font-black text-on-surface">{{ formattedCount }}</span>
-      <span class="text-[10px] font-bold text-on-surface-variant">次使用</span>
+      <span class="text-xs font-medium text-on-surface/70">次使用</span>
     </div>
-    <div class="w-full h-1 bg-surface-container rounded-full overflow-hidden mt-1">
+    <!-- 进度条 -->
+    <div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden mt-1">
       <div
-        class="h-full bg-secondary transition-all duration-500"
+        class="h-full bg-tertiary transition-all duration-500 rounded-full"
         :style="{ width: percent + '%' }"
       ></div>
     </div>

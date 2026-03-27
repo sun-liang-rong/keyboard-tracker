@@ -75,11 +75,11 @@
           <div class="flex gap-4 text-[10px] font-bold">
             <div class="flex gap-1.5 items-center">
               <span class="w-2.5 h-2.5 rounded-full bg-primary/20"></span>
-              <span class="text-on-surface-variant">常规</span>
+              <span class="text-on-surface/70">常规</span>
             </div>
             <div class="flex gap-1.5 items-center">
               <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
-              <span class="text-on-surface-variant">高峰</span>
+              <span class="text-on-surface/70">高峰</span>
             </div>
           </div>
         </div>
@@ -115,11 +115,13 @@
             常用快捷键统计
           </h3>
           <span
-            class="text-xs font-medium cursor-pointer text-on-surface-variant hover:text-primary"
+            class="text-xs font-medium cursor-pointer text-on-surface-variant/70 hover:text-primary"
             >查看全部历史</span
           >
         </div>
-        <div class="grid grid-cols-2 gap-4">
+        
+        <!-- 有数据时显示快捷键卡片 -->
+        <div v-if="hasComboData" class="grid grid-cols-2 gap-4">
           <ShortcutCard
             shortcut="Ctrl+C"
             :count="comboCounts?.COPY || 0"
@@ -140,6 +142,15 @@
             :count="comboCounts?.SHOW_DESKTOP || 0"
             :percent="getComboPercent(comboCounts?.SHOW_DESKTOP || 0)"
           />
+        </div>
+
+        <!-- 空状态 -->
+        <div v-else class="flex flex-col items-center justify-center py-10 text-center">
+          <svg class="w-12 h-12 text-on-surface-variant mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <p class="text-sm font-medium text-on-surface-variant">暂无快捷键记录</p>
+          <p class="text-xs text-on-surface-variant/60 mt-1">使用 Ctrl+C/V 等快捷键后会显示</p>
         </div>
       </div>
 
@@ -277,19 +288,27 @@ const {
   hourlyDistribution,
 } = storeToRefs(statsStore);
 
+// 检查是否有快捷键数据
+const hasComboData = computed(() => {
+  if (!comboCounts.value) return false
+  return Object.values(comboCounts.value).some(count => count > 0)
+})
+
 const lastUpdateTime = ref("--:--:--");
 let timeInterval: ReturnType<typeof setInterval> | null = null;
 
 // 每日目标（可配置）
 const dailyGoal = 10000;
 
-// 活跃时长显示
+// 活跃时长显示（与 WeekTrend 一致：基于按键次数估算，每100次=1分钟）
 const activeHoursDisplay = computed(() => {
-  const hours = activeHours.value || 0;
-  const wholeHours = Math.floor(hours);
-  const minutes = Math.round((hours - wholeHours) * 60);
-  return `${wholeHours}h ${minutes}m`;
-});
+  // 估算逻辑：每 100 次按键约 1 分钟活跃
+  const estimatedMinutes = Math.ceil((todayCount.value || 0) / 100)
+  const hours = estimatedMinutes / 60
+  const wholeHours = Math.floor(hours)
+  const minutes = Math.round((hours - wholeHours) * 60)
+  return `${wholeHours}h ${minutes}m`
+})
 
 // 计算快捷键最大值用于百分比
 const maxComboCount = computed(() => {
@@ -334,10 +353,12 @@ const goalProgress = computed(() => {
   return Math.min(Math.round(progress), 100)
 });
 
-// 平均每分钟按键数
+// 平均每分钟按键数（使用估算逻辑：每100次=1分钟活跃，所以恒定为100）
 const avgKeysPerMinute = computed(() => {
-  if (activeMinutes.value === 0) return 0
-  return Math.round(todayCount.value / activeMinutes.value)
+  if (todayCount.value === 0) return 0
+  // 基于估算逻辑：每100次按键=1分钟活跃
+  // 平均速度 = todayCount / (todayCount / 100) = 100
+  return Math.round(todayCount.value / (todayCount.value / 100))
 });
 
 // 本周平均每日按键数

@@ -682,11 +682,15 @@ export function updateDailyStatsFromMemory(
   date: string,
   totalCount: number,
   categoryCount: KeyCategoryCount,
-  comboCounts: ComboCounts
+  comboCounts: ComboCounts,
+  activeMinutes?: number
 ): void {
   if (!db) return
   const stats = getOrCreateDailyStats(date)
   stats.total_keystrokes = totalCount
+  if (activeMinutes !== undefined) {
+    stats.active_minutes = activeMinutes
+  }
   updateCategoryCount(stats, categoryCount)
   updateComboCounts(stats, comboCounts)
   updateDailyStats(stats)

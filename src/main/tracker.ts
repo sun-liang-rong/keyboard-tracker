@@ -29,6 +29,9 @@ import {
   updateDailyStatsFromMemory,
   extractCategoryCount,
   extractComboCounts,
+  getOrCreateTimeSlotStats,
+  updateTimeSlotStats,
+  getOrCreateTopKeyStats,
 } from './database'
 
 // Windows 平台的键盘监听库
@@ -131,6 +134,10 @@ let floatingWindowUpdater: ((count: number) => void) | null = null
 // UI更新节流
 let lastUIUpdateTime = 0
 let lastFloatingUpdateTime = 0
+
+// 活跃时长计算 - 基于分钟统计
+let activeMinuteKeys = new Set<number>()  // 存储今天活跃过的分钟数（每分钟用唯一ID标识）
+let activeMinutesCount = 0  // 今日活跃分钟数（缓存）
 
 
 // 打字速度统计
@@ -471,9 +478,14 @@ export async function initTodayCount(): Promise<void> {
       // 使用新格式字段名读取数据
       todayCount = todayStat.total_keystrokes
       todayDate = today
+      activeMinutesCount = todayStat.active_minutes || 0
+
+      // 直接保留数据库的精确值，不要用推断覆盖
+      // activeMinuteKeys 只用于增量统计，不用于恢复
 
       // 从 TimeSlotStats 表获取小时分布
-      hourlyCounts = dbGetHourlyDistribution(today)
+      const hourlyDist = dbGetHourlyDistribution(today)
+      hourlyCounts = hourlyDist
 
       // 使用 extractCategoryCount 从扁平化字段提取分类统计
       categoryCounts = extractCategoryCount(todayStat)
@@ -481,7 +493,7 @@ export async function initTodayCount(): Promise<void> {
       // 使用 extractComboCounts 从扁平化字段提取组合键统计
       comboCounts = extractComboCounts(todayStat)
 
-      safeLog('[Tracker] Loaded today count from database:', todayCount)
+      safeLog('[Tracker] Loaded today count from database:', todayCount, 'active minutes:', activeMinutesCount)
 
       // 从 TopKeyStats 表获取按键统计
       keyCountMap.clear()
@@ -496,6 +508,8 @@ export async function initTodayCount(): Promise<void> {
       // 数据库中没有今天的数据
       todayCount = 0
       todayDate = today
+      activeMinutesCount = 0
+      activeMinuteKeys.clear()
       hourlyCounts = new Array(24).fill(0)
       categoryCounts = createDefaultKeyCategoryCount()
       comboCounts = createDefaultComboCounts()
@@ -506,6 +520,7 @@ export async function initTodayCount(): Promise<void> {
   } catch (error) {
     safeError('[Tracker] Failed to load today count:', error)
     todayCount = 0
+    activeMinutesCount = 0
     hourlyCounts = new Array(24).fill(0)
     categoryCounts = createDefaultKeyCategoryCount()
     comboCounts = createDefaultComboCounts()
@@ -926,12 +941,43 @@ async function saveKeystrokeData(): Promise<void> {
     // 检查是否是新的一天
     if (today !== todayDate) {
       safeLog('[Tracker] Date changed from', todayDate, 'to', today, '- saving previous day data and resetting')
-      // 先保存昨天的数据到数据库
-      updateDailyStatsFromMemory(todayDate, todayCount, categoryCounts, comboCounts)
+
+      // 保存昨天的数据到数据库（包括小时分布和按键统计）
+      const previousDate = todayDate
+      const previousHourlyCounts = [...hourlyCounts]
+      const previousCategoryCounts = { ...categoryCounts }
+      const previousComboCounts = { ...comboCounts }
+      const previousTotalCount = todayCount
+      const previousKeyCountMap = new Map(keyCountMap)
+      const previousActiveMinutes = activeMinutesCount
+
+      // 先保存昨天的统计数据
+      updateDailyStatsFromMemory(previousDate, previousTotalCount, previousCategoryCounts, previousComboCounts, previousActiveMinutes)
+
+      // 保存昨天的小时分布数据到 timeSlotStats 表
+      for (let h = 0; h < 24; h++) {
+        if (previousHourlyCounts[h] > 0) {
+          const slot = getOrCreateTimeSlotStats(previousDate, h)
+          slot.keystrokes = previousHourlyCounts[h]
+          updateTimeSlotStats(slot)
+        }
+      }
+
+      // 保存昨天的按键统计到 topKeyStats 表
+      previousKeyCountMap.forEach((value, keyName) => {
+        const stats = getOrCreateTopKeyStats(previousDate, keyName, value.category)
+        stats.key_count = value.count
+      })
+
+      // 立即写入数据库，确保昨天的数据不丢失
+      await saveData()
+      safeLog('[Tracker] Saved previous day data for:', previousDate, 'count:', previousTotalCount)
 
       // 新的一天，重置计数
       todayCount = 1
       todayDate = today
+      activeMinutesCount = 0
+      activeMinuteKeys.clear()
       hourlyCounts = new Array(24).fill(0)
       hourlyCounts[hour] = 1
       categoryCounts = createDefaultKeyCategoryCount()
@@ -948,7 +994,22 @@ async function saveKeystrokeData(): Promise<void> {
     }
 
     // 使用 updateDailyStatsFromMemory 保存数据（正确处理新格式）
-    updateDailyStatsFromMemory(today, todayCount, categoryCounts, comboCounts)
+    updateDailyStatsFromMemory(today, todayCount, categoryCounts, comboCounts, activeMinutesCount)
+
+    // 保存小时分布数据到 timeSlotStats 表
+    for (let h = 0; h < 24; h++) {
+      if (hourlyCounts[h] > 0) {
+        const slot = getOrCreateTimeSlotStats(today, h)
+        slot.keystrokes = hourlyCounts[h]
+        updateTimeSlotStats(slot)
+      }
+    }
+
+    // 保存按键统计到 topKeyStats 表
+    keyCountMap.forEach((value, keyName) => {
+      const stats = getOrCreateTopKeyStats(today, keyName, value.category)
+      stats.key_count = value.count
+    })
 
     // 更新最活跃小时
     const hourlyDist = dbGetHourlyDistribution(today)
@@ -979,6 +1040,13 @@ export function getTodayCount(): number {
 }
 
 /**
+ * 获取今日活跃分钟数
+ */
+export function getActiveMinutes(): number {
+  return activeMinutesCount
+}
+
+/**
  * 获取今日小时分布
  */
 export function getHourlyDistribution(): number[] {
@@ -991,18 +1059,33 @@ export function getHourlyDistribution(): number[] {
  */
 export async function flushData(): Promise<void> {
   safeLog('[Tracker] Flushing data to database...')
-  safeLog('[Tracker] Current memory date:', todayDate, 'count:', todayCount)
+  safeLog('[Tracker] Current memory date:', todayDate, 'count:', todayCount, 'active minutes:', activeMinutesCount)
 
   try {
     // 使用 updateDailyStatsFromMemory 保存数据（正确处理新格式）
-    updateDailyStatsFromMemory(todayDate, todayCount, categoryCounts, comboCounts)
+    updateDailyStatsFromMemory(todayDate, todayCount, categoryCounts, comboCounts, activeMinutesCount)
+
+    // 保存小时分布数据到 timeSlotStats 表
+    for (let h = 0; h < 24; h++) {
+      if (hourlyCounts[h] > 0) {
+        const slot = getOrCreateTimeSlotStats(todayDate, h)
+        slot.keystrokes = hourlyCounts[h]
+        updateTimeSlotStats(slot)
+      }
+    }
+
+    // 保存按键统计到 topKeyStats 表
+    keyCountMap.forEach((value, keyName) => {
+      const stats = getOrCreateTopKeyStats(todayDate, keyName, value.category)
+      stats.key_count = value.count
+    })
 
     // 检查是否是新的一天，如果是则同时保存今天的数据
     const today = getTodayDate()
     if (today !== todayDate) {
       safeLog('[Tracker] Date changed detected during flush, creating new day entry for:', today)
       // 今天还没有数据，创建一个空的条目
-      updateDailyStatsFromMemory(today, 0, createDefaultKeyCategoryCount(), createDefaultComboCounts())
+      updateDailyStatsFromMemory(today, 0, createDefaultKeyCategoryCount(), createDefaultComboCounts(), 0)
     }
 
     // 保存到数据库
@@ -1235,6 +1318,8 @@ function processKeyEvent(category: string, keyName: string, timestamp: number = 
  * @param _timestamp - 按键时间戳（毫秒）- 暂未使用
  */
 function processSingleKeyEvent(category: string, keyName: string, _timestamp: number): void {
+  const now = Date.now()
+
   // 更新总按键计数
   todayCount++
 
@@ -1244,6 +1329,14 @@ function processSingleKeyEvent(category: string, keyName: string, _timestamp: nu
     hourlyCounts[hour] = 0
   }
   hourlyCounts[hour]++
+
+  // 精确活跃分钟统计：用小时*60+分钟作为唯一标识
+  const currentMinute = hour * 60 + new Date().getMinutes()
+  if (!activeMinuteKeys.has(currentMinute)) {
+    activeMinuteKeys.add(currentMinute)
+    // 只有当确实累计了新分钟时才+1，不要用Set大小覆盖！
+    activeMinutesCount++
+  }
 
   // 更新分类计数
   if (category in categoryCounts) {
@@ -1272,7 +1365,6 @@ function processSingleKeyEvent(category: string, keyName: string, _timestamp: nu
   sendThrottledUpdate()
 
   // 检查是否需要保存（每50次按键或间隔超过30秒）
-  const now = Date.now()
   if (todayCount % 50 === 0 || (now - lastSaveTime > PERF_CONFIG.SAVE_MIN_INTERVAL)) {
     saveKeystrokeData()
     lastSaveTime = now
